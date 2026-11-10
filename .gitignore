@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+
+# Xcode
+ios-app/StitchScreenshot/StitchScreenshot.xcodeproj/xcuserdata/
+ios-app/StitchScreenshot/StitchScreenshot.xcodeproj/project.xcworkspace/xcuserdata/
+DerivedData/
+*.xcarchive
+*.ipa
+
+# Node / Chrome extension artifacts
+chrome-extension/node_modules/
+*.log
+
+# Local secrets / env
+.env
+.env.*

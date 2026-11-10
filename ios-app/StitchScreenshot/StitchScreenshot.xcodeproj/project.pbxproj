@@ -1,0 +1,752 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 110;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		3CE006DA30A3893300440F06 /* StitchShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 3CE006D030A3893300440F06 /* StitchShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		3CE006B230A3890600440F06 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3CE0069C30A3890500440F06 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 3CE006A330A3890500440F06;
+			remoteInfo = StitchScreenshot;
+		};
+		3CE006BC30A3890600440F06 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3CE0069C30A3890500440F06 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 3CE006A330A3890500440F06;
+			remoteInfo = StitchScreenshot;
+		};
+		3CE006D830A3893300440F06 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3CE0069C30A3890500440F06 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 3CE006CF30A3893300440F06;
+			remoteInfo = StitchShareExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		3CE006DF30A3893300440F06 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			dstPath = "";
+			dstSubfolder = PlugIns;
+			files = (
+				3CE006DA30A3893300440F06 /* StitchShareExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		3CE006A430A3890500440F06 /* StitchScreenshot.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = StitchScreenshot.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		3CE006B130A3890600440F06 /* StitchScreenshotTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StitchScreenshotTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		3CE006BB30A3890600440F06 /* StitchScreenshotUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StitchScreenshotUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		3CE006D030A3893300440F06 /* StitchShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = StitchShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		3CE006DB30A3893300440F06 /* Exceptions for "StitchShareExtension" folder in "StitchShareExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 3CE006CF30A3893300440F06 /* StitchShareExtension */;
+		};
+		3CE006E130A389D700440F06 /* Exceptions for "StitchScreenshot" folder in "StitchScreenshot" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 3CE006A330A3890500440F06 /* StitchScreenshot */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		3CE006A630A3890500440F06 /* StitchScreenshot */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				3CE006E130A389D700440F06 /* Exceptions for "StitchScreenshot" folder in "StitchScreenshot" target */,
+			);
+			path = StitchScreenshot;
+			sourceTree = "<group>";
+		};
+		3CE006B430A3890600440F06 /* StitchScreenshotTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = StitchScreenshotTests;
+			sourceTree = "<group>";
+		};
+		3CE006BE30A3890600440F06 /* StitchScreenshotUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = StitchScreenshotUITests;
+			sourceTree = "<group>";
+		};
+		3CE006D130A3893300440F06 /* StitchShareExtension */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				3CE006DB30A3893300440F06 /* Exceptions for "StitchShareExtension" folder in "StitchShareExtension" target */,
+			);
+			path = StitchShareExtension;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		3CE006A130A3890500440F06 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+		3CE006AE30A3890600440F06 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+		3CE006B830A3890600440F06 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+		3CE006CD30A3893300440F06 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		3CE0069B30A3890500440F06 = {
+			isa = PBXGroup;
+			children = (
+				3CE006A630A3890500440F06 /* StitchScreenshot */,
+				3CE006B430A3890600440F06 /* StitchScreenshotTests */,
+				3CE006BE30A3890600440F06 /* StitchScreenshotUITests */,
+				3CE006D130A3893300440F06 /* StitchShareExtension */,
+				3CE006A530A3890500440F06 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		3CE006A530A3890500440F06 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				3CE006A430A3890500440F06 /* StitchScreenshot.app */,
+				3CE006B130A3890600440F06 /* StitchScreenshotTests.xctest */,
+				3CE006BB30A3890600440F06 /* StitchScreenshotUITests.xctest */,
+				3CE006D030A3893300440F06 /* StitchShareExtension.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		3CE006A330A3890500440F06 /* StitchScreenshot */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3CE006C330A3890600440F06 /* Build configuration list for PBXNativeTarget "StitchScreenshot" */;
+			buildPhases = (
+				3CE006A030A3890500440F06 /* Sources */,
+				3CE006A130A3890500440F06 /* Frameworks */,
+				3CE006A230A3890500440F06 /* Resources */,
+				3CE006DF30A3893300440F06 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				3CE006D930A3893300440F06 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				3CE006A630A3890500440F06 /* StitchScreenshot */,
+			);
+			name = StitchScreenshot;
+			productName = StitchScreenshot;
+			productReference = 3CE006A430A3890500440F06 /* StitchScreenshot.app */;
+			productType = "com.apple.product-type.application";
+		};
+		3CE006B030A3890600440F06 /* StitchScreenshotTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3CE006C630A3890600440F06 /* Build configuration list for PBXNativeTarget "StitchScreenshotTests" */;
+			buildPhases = (
+				3CE006AD30A3890600440F06 /* Sources */,
+				3CE006AE30A3890600440F06 /* Frameworks */,
+				3CE006AF30A3890600440F06 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				3CE006B330A3890600440F06 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				3CE006B430A3890600440F06 /* StitchScreenshotTests */,
+			);
+			name = StitchScreenshotTests;
+			productName = StitchScreenshotTests;
+			productReference = 3CE006B130A3890600440F06 /* StitchScreenshotTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		3CE006BA30A3890600440F06 /* StitchScreenshotUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3CE006C930A3890600440F06 /* Build configuration list for PBXNativeTarget "StitchScreenshotUITests" */;
+			buildPhases = (
+				3CE006B730A3890600440F06 /* Sources */,
+				3CE006B830A3890600440F06 /* Frameworks */,
+				3CE006B930A3890600440F06 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				3CE006BD30A3890600440F06 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				3CE006BE30A3890600440F06 /* StitchScreenshotUITests */,
+			);
+			name = StitchScreenshotUITests;
+			productName = StitchScreenshotUITests;
+			productReference = 3CE006BB30A3890600440F06 /* StitchScreenshotUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		3CE006CF30A3893300440F06 /* StitchShareExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3CE006DC30A3893300440F06 /* Build configuration list for PBXNativeTarget "StitchShareExtension" */;
+			buildPhases = (
+				3CE006CC30A3893300440F06 /* Sources */,
+				3CE006CD30A3893300440F06 /* Frameworks */,
+				3CE006CE30A3893300440F06 /* Resources */,
+			);
+			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				3CE006D130A3893300440F06 /* StitchShareExtension */,
+			);
+			name = StitchShareExtension;
+			productName = StitchShareExtension;
+			productReference = 3CE006D030A3893300440F06 /* StitchShareExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		3CE0069C30A3890500440F06 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2710;
+				LastUpgradeCheck = 2710;
+				TargetAttributes = {
+					3CE006A330A3890500440F06 = {
+						CreatedOnToolsVersion = 27.1;
+					};
+					3CE006B030A3890600440F06 = {
+						CreatedOnToolsVersion = 27.1;
+						TestTargetID = 3CE006A330A3890500440F06;
+					};
+					3CE006BA30A3890600440F06 = {
+						CreatedOnToolsVersion = 27.1;
+						TestTargetID = 3CE006A330A3890500440F06;
+					};
+					3CE006CF30A3893300440F06 = {
+						CreatedOnToolsVersion = 27.1;
+					};
+				};
+			};
+			buildConfigurationList = 3CE0069F30A3890500440F06 /* Build configuration list for PBXProject "StitchScreenshot" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 3CE0069B30A3890500440F06;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 3CE006A530A3890500440F06 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				3CE006A330A3890500440F06 /* StitchScreenshot */,
+				3CE006B030A3890600440F06 /* StitchScreenshotTests */,
+				3CE006BA30A3890600440F06 /* StitchScreenshotUITests */,
+				3CE006CF30A3893300440F06 /* StitchShareExtension */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		3CE006A230A3890500440F06 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		3CE006AF30A3890600440F06 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		3CE006B930A3890600440F06 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		3CE006CE30A3893300440F06 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		3CE006A030A3890500440F06 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
+		3CE006AD30A3890600440F06 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
+		3CE006B730A3890600440F06 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
+		3CE006CC30A3893300440F06 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		3CE006B330A3890600440F06 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 3CE006A330A3890500440F06 /* StitchScreenshot */;
+			targetProxy = 3CE006B230A3890600440F06 /* PBXContainerItemProxy */;
+		};
+		3CE006BD30A3890600440F06 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 3CE006A330A3890500440F06 /* StitchScreenshot */;
+			targetProxy = 3CE006BC30A3890600440F06 /* PBXContainerItemProxy */;
+		};
+		3CE006D930A3893300440F06 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 3CE006CF30A3893300440F06 /* StitchShareExtension */;
+			targetProxy = 3CE006D830A3893300440F06 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		3CE006C130A3890600440F06 /* Debug configuration for PBXProject "StitchScreenshot" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		3CE006C230A3890600440F06 /* Release configuration for PBXProject "StitchScreenshot" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		3CE006C430A3890600440F06 /* Debug configuration for PBXNativeTarget "StitchScreenshot" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = StitchScreenshot/Info.plist;
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "StitchScreenshot needs permission to save stitched webpage screenshots to your Photos library.";
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cmanikandan.stitchscreenshot.StitchScreenshot;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				XROS_DEPLOYMENT_TARGET = 27.0;
+			};
+			name = Debug;
+		};
+		3CE006C530A3890600440F06 /* Release configuration for PBXNativeTarget "StitchScreenshot" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = StitchScreenshot/Info.plist;
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "StitchScreenshot needs permission to save stitched webpage screenshots to your Photos library.";
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cmanikandan.stitchscreenshot.StitchScreenshot;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				XROS_DEPLOYMENT_TARGET = 27.0;
+			};
+			name = Release;
+		};
+		3CE006C730A3890600440F06 /* Debug configuration for PBXNativeTarget "StitchScreenshotTests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cmanikandan.stitchscreenshot.StitchScreenshotTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/StitchScreenshot.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/StitchScreenshot";
+				XROS_DEPLOYMENT_TARGET = 27.0;
+			};
+			name = Debug;
+		};
+		3CE006C830A3890600440F06 /* Release configuration for PBXNativeTarget "StitchScreenshotTests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cmanikandan.stitchscreenshot.StitchScreenshotTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/StitchScreenshot.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/StitchScreenshot";
+				XROS_DEPLOYMENT_TARGET = 27.0;
+			};
+			name = Release;
+		};
+		3CE006CA30A3890600440F06 /* Debug configuration for PBXNativeTarget "StitchScreenshotUITests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cmanikandan.stitchscreenshot.StitchScreenshotUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_TARGET_NAME = StitchScreenshot;
+				XROS_DEPLOYMENT_TARGET = 27.0;
+			};
+			name = Debug;
+		};
+		3CE006CB30A3890600440F06 /* Release configuration for PBXNativeTarget "StitchScreenshotUITests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cmanikandan.stitchscreenshot.StitchScreenshotUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_TARGET_NAME = StitchScreenshot;
+				XROS_DEPLOYMENT_TARGET = 27.0;
+			};
+			name = Release;
+		};
+		3CE006DD30A3893300440F06 /* Debug configuration for PBXNativeTarget "StitchShareExtension" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = StitchShareExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = StitchShareExtension;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cmanikandan.stitchscreenshot.StitchScreenshot.StitchShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		3CE006DE30A3893300440F06 /* Release configuration for PBXNativeTarget "StitchShareExtension" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = StitchShareExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = StitchShareExtension;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.cmanikandan.stitchscreenshot.StitchScreenshot.StitchShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		3CE0069F30A3890500440F06 /* Build configuration list for PBXProject "StitchScreenshot" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3CE006C130A3890600440F06 /* Debug configuration for PBXProject "StitchScreenshot" */,
+				3CE006C230A3890600440F06 /* Release configuration for PBXProject "StitchScreenshot" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		3CE006C330A3890600440F06 /* Build configuration list for PBXNativeTarget "StitchScreenshot" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3CE006C430A3890600440F06 /* Debug configuration for PBXNativeTarget "StitchScreenshot" */,
+				3CE006C530A3890600440F06 /* Release configuration for PBXNativeTarget "StitchScreenshot" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		3CE006C630A3890600440F06 /* Build configuration list for PBXNativeTarget "StitchScreenshotTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3CE006C730A3890600440F06 /* Debug configuration for PBXNativeTarget "StitchScreenshotTests" */,
+				3CE006C830A3890600440F06 /* Release configuration for PBXNativeTarget "StitchScreenshotTests" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		3CE006C930A3890600440F06 /* Build configuration list for PBXNativeTarget "StitchScreenshotUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3CE006CA30A3890600440F06 /* Debug configuration for PBXNativeTarget "StitchScreenshotUITests" */,
+				3CE006CB30A3890600440F06 /* Release configuration for PBXNativeTarget "StitchScreenshotUITests" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		3CE006DC30A3893300440F06 /* Build configuration list for PBXNativeTarget "StitchShareExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3CE006DD30A3893300440F06 /* Debug configuration for PBXNativeTarget "StitchShareExtension" */,
+				3CE006DE30A3893300440F06 /* Release configuration for PBXNativeTarget "StitchShareExtension" */,
+			);
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 3CE0069C30A3890500440F06 /* Project object */;
+	validationLevel = 1;
+}

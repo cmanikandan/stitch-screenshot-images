@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PageStitch Capture</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <img src="../icons/icon-48.png" alt="" width="24" height="24" class="brand-icon">
+      <div>
+        <h1>PageStitch</h1>
+        <p class="subtitle">Pure PNG / JPEG full &amp; multi-page capture</p>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <section class="card" aria-labelledby="capture-heading">
+      <h2 id="capture-heading" class="section-title">Capture</h2>
+      <div class="button-stack">
+        <button id="btn-capture-full" type="button" class="btn btn-primary">
+          Capture Full Page
+        </button>
+        <button id="btn-capture-multi" type="button" class="btn btn-secondary">
+          Auto-Capture Multi-Page
+        </button>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="session-heading">
+      <div class="section-header-row">
+        <h2 id="session-heading" class="section-title">Multi-Page Session</h2>
+        <span id="staged-count" class="badge">0 staged</span>
+      </div>
+      <div class="button-grid">
+        <button id="btn-append-page" type="button" class="btn btn-secondary btn-span-2">
+          Append This Page
+        </button>
+        <button id="btn-stitch-staged" type="button" class="btn btn-primary" disabled>
+          Stitch &amp; Save
+        </button>
+        <button id="btn-clear-staged" type="button" class="btn btn-ghost" disabled>
+          Clear
+        </button>
+      </div>
+    </section>
+
+    <div class="feedback-area">
+      <progress id="capture-progress" class="progress-bar" hidden></progress>
+      <div id="status-banner" role="status" aria-live="polite" class="status-banner" hidden></div>
+    </div>
+
+    <section id="preview-section" class="card" aria-labelledby="preview-heading" hidden>
+      <div class="section-header-row">
+        <h2 id="preview-heading" class="section-title">Captured Image</h2>
+        <span id="preview-meta" class="meta-pill"></span>
+      </div>
+      <div class="preview-frame">
+        <img id="preview-image" src="" alt="Stitched screenshot preview">
+      </div>
+      <div class="button-grid">
+        <button id="btn-download" type="button" class="btn btn-primary">
+          Download Image
+        </button>
+        <button id="btn-copy" type="button" class="btn btn-secondary">
+          Copy Image
+        </button>
+      </div>
+    </section>
+
+    <details id="settings-details" class="card settings-card">
+      <summary class="settings-summary">Settings</summary>
+      <form id="settings-form" class="settings-form" novalidate>
+        <fieldset class="radio-fieldset">
+          <legend>Export Format</legend>
+          <div class="radio-row">
+            <div class="radio-option">
+              <input type="radio" id="fmt-png" name="format" value="png" checked>
+              <label for="fmt-png">PNG (Lossless)</label>
+            </div>
+            <div class="radio-option">
+              <input type="radio" id="fmt-jpeg" name="format" value="jpeg">
+              <label for="fmt-jpeg">JPEG (Compact)</label>
+            </div>
+          </div>
+        </fieldset>
+
+        <div class="checkbox-field">
+          <input type="checkbox" id="auto-clean" name="autoCleanClutter" checked>
+          <label for="auto-clean">Auto-hide cookie banners, popups &amp; sticky clutter</label>
+        </div>
+
+        <div class="field">
+          <label for="max-pages">Max auto-capture pages (2–15)</label>
+          <span id="max-pages-hint" class="hint">Pages stacked vertically into one image.</span>
+          <input
+            id="max-pages"
+            name="maxAutoPages"
+            type="number"
+            min="2"
+            max="15"
+            step="1"
+            value="5"
+            required
+            inputmode="numeric"
+            aria-describedby="max-pages-hint"
+            aria-invalid="false"
+            data-error="max-pages-error"
+          >
+          <div id="max-pages-error" class="error-msg">
+            <span role="img" aria-label="Error">!</span> Enter a whole number between 2 and 15.
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="api-key">Gemini API Key (optional)</label>
+          <span id="api-key-hint" class="hint">
+            Uses Gemini 3.8 Flash for smart clutter hiding &amp; pagination. Stored locally only.
+          </span>
+          <div class="password-row">
+            <input
+              id="api-key"
+              name="apiKey"
+              type="password"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="none"
+              spellcheck="false"
+              placeholder="AIza..."
+              aria-describedby="api-key-hint"
+              aria-invalid="false"
+            >
+            <button
+              id="toggle-api-key"
+              type="button"
+              class="btn btn-ghost btn-compact"
+              aria-pressed="false"
+              aria-label="Show API key"
+            >
+              Show
+            </button>
+          </div>
+        </div>
+
+        <div class="button-grid">
+          <button id="btn-save-settings" type="submit" class="btn btn-primary">
+            Save Settings
+          </button>
+          <button id="btn-clear-cache" type="button" class="btn btn-ghost">
+            Clear Domain Cache
+          </button>
+        </div>
+      </form>
+    </details>
+  </main>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

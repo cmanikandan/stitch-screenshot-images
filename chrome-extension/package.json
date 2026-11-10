@@ -1,0 +1,11 @@
+{
+  "name": "pagestitch-chrome-extension",
+  "version": "1.0.0",
+  "description": "Manifest V3 Chrome Extension for pure-image full-page and multi-page screenshot capture.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "icons": "node scripts/generate-icons.mjs"
+  }
+}
