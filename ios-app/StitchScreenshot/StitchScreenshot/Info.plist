@@ -15,5 +15,7 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>StitchScreenshot needs permission to save stitched webpage screenshots to your Photos library.</string>
 </dict>
 </plist>

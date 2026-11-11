@@ -1,14 +1,22 @@
+import Foundation
 import SwiftUI
 import UIKit
 
 /// Pure-image preview, zoom, copy, Photos save, and native Share Sheet export.
 struct PreviewSheet: View {
+    private nonisolated struct EncodingTaskKey: Equatable, Sendable {
+        let resultID: UUID
+        let format: ImageExportFormat
+        let jpegQuality: Double
+    }
+
     let result: CapturedImageResult
     @Bindable var settings: AppSettingsStore
 
     @Environment(\.dismiss) private var dismiss
     @State private var zoomScale: CGFloat = 1.0
     @State private var activePinchScale: CGFloat = 1.0
+    @State private var encodedByteSizeText: String = "--"
     @State private var isSavingToPhotos = false
     @State private var statusBanner: String?
     @State private var errorMessage: String?
@@ -18,17 +26,12 @@ struct PreviewSheet: View {
         ImageStitcher.pixelSize(of: result.image)
     }
 
-    private var encodedPreviewData: Data? {
-        try? ImageStitcher.encode(
-            result.image,
+    private var encodingTaskKey: EncodingTaskKey {
+        EncodingTaskKey(
+            resultID: result.id,
             format: settings.outputFormat,
-            jpegQuality: settings.jpegQuality
+            jpegQuality: settings.outputFormat == .jpeg ? settings.jpegQuality : 1.0
         )
-    }
-
-    private var formattedByteSize: String {
-        guard let data = encodedPreviewData else { return "--" }
-        return ByteCountFormatter.string(fromByteCount: Int64(data.count), countStyle: .file)
     }
 
     var body: some View {
@@ -62,6 +65,29 @@ struct PreviewSheet: View {
                     Button("Done") { dismiss() }
                 }
             }
+            .task(id: encodingTaskKey) {
+                encodedByteSizeText = "--"
+                let image = result.image
+                let format = settings.outputFormat
+                let quality = CGFloat(settings.jpegQuality)
+                let encodeJob = Task.detached(priority: .utility) { () -> String in
+                    guard !Task.isCancelled,
+                          let data = try? ImageStitcher.encode(image, format: format, jpegQuality: quality),
+                          !Task.isCancelled
+                    else {
+                        return "--"
+                    }
+                    return ByteCountFormatter.string(fromByteCount: Int64(data.count), countStyle: .file)
+                }
+                let formatted = await withTaskCancellationHandler {
+                    await encodeJob.value
+                } onCancel: {
+                    encodeJob.cancel()
+                }
+                if !Task.isCancelled {
+                    encodedByteSizeText = formatted
+                }
+            }
             .sheet(item: $sharePayload) { payload in
                 PureImageActivitySheet(items: payload.items)
                     .ignoresSafeArea()
@@ -80,7 +106,7 @@ struct PreviewSheet: View {
     private var metadataBar: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("\(pixelDimensions.width) × \(pixelDimensions.height) px • \(formattedByteSize)")
+                Text("\(pixelDimensions.width) × \(pixelDimensions.height) px • \(encodedByteSizeText)")
                     .font(.caption.monospacedDigit().weight(.medium))
                     .foregroundStyle(.primary)
                 Text(result.pageCount > 1 ? "\(result.pageCount) stitched pages" : "Single full-page capture")

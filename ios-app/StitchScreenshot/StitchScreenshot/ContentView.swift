@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 import UIKit
 
@@ -75,6 +76,7 @@ struct ContentView: View {
                 Image(systemName: "chevron.left")
                     .font(.body.weight(.semibold))
             }
+            .accessibilityLabel("Back")
             .disabled(!captureService.canGoBack || captureService.isCapturing)
 
             Button {
@@ -83,6 +85,7 @@ struct ContentView: View {
                 Image(systemName: "chevron.right")
                     .font(.body.weight(.semibold))
             }
+            .accessibilityLabel("Forward")
             .disabled(!captureService.canGoForward || captureService.isCapturing)
 
             HStack(spacing: 6) {
@@ -110,6 +113,7 @@ struct ContentView: View {
                             .foregroundStyle(.secondary)
                             .font(.caption)
                     }
+                    .accessibilityLabel("Clear Address")
                 }
             }
             .padding(.horizontal, 10)
@@ -123,7 +127,8 @@ struct ContentView: View {
                 Image(systemName: captureService.isLoading ? "xmark" : "arrow.clockwise")
                     .font(.body.weight(.medium))
             }
-            .disabled(!captureService.hasLoadedAnyPage)
+            .accessibilityLabel(captureService.isLoading ? "Stop Loading" : "Reload Page")
+            .disabled(!captureService.hasLoadedAnyPage || captureService.isCapturing)
 
             Button {
                 showSettings = true
@@ -131,6 +136,7 @@ struct ContentView: View {
                 Image(systemName: "gearshape")
                     .font(.body.weight(.medium))
             }
+            .accessibilityLabel("Settings")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -329,7 +335,7 @@ struct ContentView: View {
                         .padding(.vertical, 10)
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(!captureService.hasLoadedAnyPage || captureService.isCapturing)
+                .disabled(!captureService.hasCommittedPage || captureService.isCapturing)
 
                 Button {
                     runAutoMultiPageCapture()
@@ -340,7 +346,7 @@ struct ContentView: View {
                         .padding(.vertical, 10)
                 }
                 .buttonStyle(.bordered)
-                .disabled(!captureService.hasLoadedAnyPage || captureService.isCapturing)
+                .disabled(!captureService.hasCommittedPage || captureService.isCapturing)
 
                 Button {
                     runCaptureAndAppend()
@@ -351,7 +357,7 @@ struct ContentView: View {
                         .padding(.vertical, 10)
                 }
                 .buttonStyle(.bordered)
-                .disabled(!captureService.hasLoadedAnyPage || captureService.isCapturing)
+                .disabled(!captureService.hasCommittedPage || captureService.isCapturing)
 
                 if !captureService.stagedPages.isEmpty {
                     Button {
@@ -398,6 +404,8 @@ struct ContentView: View {
                 )
             } catch WebCaptureError.cancelled {
                 // User cancelled capture.
+            } catch is CancellationError {
+                // User cancelled capture.
             } catch {
                 captureService.errorMessage = error.localizedDescription
             }
@@ -413,6 +421,8 @@ struct ContentView: View {
                 )
             } catch WebCaptureError.cancelled {
                 // User cancelled capture.
+            } catch is CancellationError {
+                // User cancelled capture.
             } catch {
                 captureService.errorMessage = error.localizedDescription
             }
@@ -426,6 +436,8 @@ struct ContentView: View {
                     autoCleanClutter: settings.autoCleanClutter
                 )
             } catch WebCaptureError.cancelled {
+                // User cancelled capture.
+            } catch is CancellationError {
                 // User cancelled capture.
             } catch {
                 captureService.errorMessage = error.localizedDescription

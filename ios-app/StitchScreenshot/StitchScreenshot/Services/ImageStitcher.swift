@@ -134,22 +134,24 @@ nonisolated enum ImageStitcher {
             configuration.backgroundColor.setFill()
             context.fill(CGRect(x: 0, y: 0, width: canvasWidth, height: canvasHeight))
 
-            var currentY: CGFloat = 0
+            var exactY: CGFloat = 0
             for (index, slice) in scaledSlices.enumerated() {
-                let drawHeight = (index == scaledSlices.count - 1)
-                    ? max(1, CGFloat(canvasHeight) - currentY)
-                    : max(1, round(slice.height * globalDownscale))
+                let startY = min(CGFloat(max(0, canvasHeight - 1)), round(exactY))
+                exactY += slice.height * globalDownscale
+                let endY = (index == scaledSlices.count - 1 && gap == 0)
+                    ? CGFloat(canvasHeight)
+                    : min(CGFloat(canvasHeight), round(exactY))
+                let drawHeight = max(1, endY - startY)
 
                 let drawRect = CGRect(
                     x: 0,
-                    y: currentY,
+                    y: startY,
                     width: CGFloat(canvasWidth),
                     height: drawHeight
                 )
                 slice.image.draw(in: drawRect)
-                currentY += drawHeight
                 if index < scaledSlices.count - 1 {
-                    currentY += scaledGap
+                    exactY += scaledGap
                 }
             }
         }
@@ -186,12 +188,41 @@ nonisolated enum ImageStitcher {
         jpegQuality: CGFloat = 0.92,
         fileNamePrefix: String = "StitchScreenshot"
     ) throws -> URL {
+        pruneTemporaryImageFiles(fileNamePrefix: fileNamePrefix)
         let data = try encode(image, format: format, jpegQuality: jpegQuality)
         let timestamp = Int(Date().timeIntervalSince1970)
         let fileName = "\(fileNamePrefix)-\(timestamp)-\(UUID().uuidString.prefix(6)).\(format.fileExtension)"
         let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
         try data.write(to: fileURL, options: .atomic)
         return fileURL
+    }
+
+    static func pruneTemporaryImageFiles(
+        in directory: URL = FileManager.default.temporaryDirectory,
+        fileNamePrefix: String = "StitchScreenshot",
+        olderThan maxAge: TimeInterval = 3600,
+        now: Date = Date()
+    ) {
+        let fm = FileManager.default
+        guard let urls = try? fm.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: [.contentModificationDateKey, .creationDateKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            return
+        }
+
+        for fileURL in urls {
+            let name = fileURL.lastPathComponent
+            guard name.hasPrefix("StitchScreenshot-") || name.hasPrefix("\(fileNamePrefix)-") else {
+                continue
+            }
+            let values = try? fileURL.resourceValues(forKeys: [.contentModificationDateKey, .creationDateKey])
+            if let fileDate = values?.contentModificationDate ?? values?.creationDate,
+               now.timeIntervalSince(fileDate) > maxAge {
+                try? fm.removeItem(at: fileURL)
+            }
+        }
     }
 
     private static func normalizeOrientation(_ image: UIImage) -> UIImage {

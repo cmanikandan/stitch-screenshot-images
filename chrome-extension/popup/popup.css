@@ -364,7 +364,19 @@ h1 {
   flex: 1;
 }
 
-input:user-invalid {
+.btn-cancel {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.btn-cancel:hover:not(:disabled) {
+  border-color: var(--danger);
+  background-color: var(--danger-bg);
+  color: var(--danger);
+}
+
+input:user-invalid,
+input[aria-invalid="true"] {
   border-color: var(--danger);
   background-color: var(--danger-bg);
 }
@@ -376,6 +388,7 @@ input:user-invalid {
   font-weight: 500;
 }
 
-input:user-invalid + .error-msg {
+input:user-invalid + .error-msg,
+input[aria-invalid="true"] + .error-msg {
   display: block;
 }

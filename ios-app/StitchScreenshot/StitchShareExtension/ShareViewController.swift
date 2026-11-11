@@ -1,6 +1,9 @@
+import Foundation
+import ObjectiveC
 import UIKit
 import UniformTypeIdentifiers
 
+@objc(ShareViewController)
 final class ShareViewController: UIViewController {
     private let cardView = UIView()
     private let titleLabel = UILabel()
@@ -10,11 +13,24 @@ final class ShareViewController: UIViewController {
     private let cancelButton = UIButton(type: .system)
 
     private var deepLinkURL: URL?
+    private var urlProviders: [NSItemProvider] = []
+    private var textProviders: [NSItemProvider] = []
+    private var hasAppeared = false
+    private var didAttemptAutoOpen = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
         configureUI()
         extractSharedURL()
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        hasAppeared = true
+        if let deepLinkURL, !didAttemptAutoOpen {
+            didAttemptAutoOpen = true
+            openHostApp(with: deepLinkURL)
+        }
     }
 
     private func configureUI() {
@@ -88,37 +104,47 @@ final class ShareViewController: UIViewController {
         }
 
         let providers = items.compactMap(\.attachments).flatMap { $0 }
+        urlProviders = providers.filter { $0.hasItemConformingToTypeIdentifier(UTType.url.identifier) }
+        textProviders = providers.filter { $0.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) }
 
-        if let urlProvider = providers.first(where: { $0.hasItemConformingToTypeIdentifier(UTType.url.identifier) }) {
-            urlProvider.loadItem(forTypeIdentifier: UTType.url.identifier, options: nil) { [weak self] item, _ in
-                DispatchQueue.main.async {
-                    if let url = item as? URL, self?.isSupportedWebURL(url) == true {
-                        self?.handleResolvedURL(url)
-                    } else if let text = item as? String, let extracted = self?.extractWebURL(from: text) {
-                        self?.handleResolvedURL(extracted)
-                    } else {
-                        self?.tryExtractFromTextProviders(providers)
-                    }
-                }
-            }
+        tryNextURLProvider(index: 0)
+    }
+
+    private func tryNextURLProvider(index: Int) {
+        guard index < urlProviders.count else {
+            tryNextTextProvider(index: 0)
             return
         }
 
-        tryExtractFromTextProviders(providers)
+        let provider = urlProviders[index]
+        provider.loadItem(forTypeIdentifier: UTType.url.identifier, options: nil) { [weak self] item, _ in
+            let resolvedURL = Self.resolveWebURL(from: item)
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if let resolvedURL {
+                    self.handleResolvedURL(resolvedURL)
+                } else {
+                    self.tryNextURLProvider(index: index + 1)
+                }
+            }
+        }
     }
 
-    private func tryExtractFromTextProviders(_ providers: [NSItemProvider]) {
-        guard let textProvider = providers.first(where: { $0.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) }) else {
+    private func tryNextTextProvider(index: Int) {
+        guard index < textProviders.count else {
             showNoURLFound()
             return
         }
 
-        textProvider.loadItem(forTypeIdentifier: UTType.plainText.identifier, options: nil) { [weak self] item, _ in
-            DispatchQueue.main.async {
-                if let text = item as? String, let url = self?.extractWebURL(from: text) {
-                    self?.handleResolvedURL(url)
+        let provider = textProviders[index]
+        provider.loadItem(forTypeIdentifier: UTType.plainText.identifier, options: nil) { [weak self] item, _ in
+            let resolvedURL = Self.resolveWebURL(from: item)
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if let resolvedURL {
+                    self.handleResolvedURL(resolvedURL)
                 } else {
-                    self?.showNoURLFound()
+                    self.tryNextTextProvider(index: index + 1)
                 }
             }
         }
@@ -134,7 +160,10 @@ final class ShareViewController: UIViewController {
         deepLinkURL = deepLink
         openButton.isEnabled = true
         statusLabel.text = "Handing off to StitchScreenshot..."
-        openHostApp(with: deepLink)
+        if hasAppeared && !didAttemptAutoOpen {
+            didAttemptAutoOpen = true
+            openHostApp(with: deepLink)
+        }
     }
 
     private func showNoURLFound() {
@@ -153,15 +182,25 @@ final class ShareViewController: UIViewController {
     }
 
     private func openHostApp(with url: URL) {
+        let openOptionsSel = sel_registerName("openURL:options:completionHandler:")
         var responder: UIResponder? = self
         while let current = responder {
-            if let application = current as? UIApplication {
-                application.open(url, options: [:]) { [weak self] success in
-                    DispatchQueue.main.async {
+            if current.responds(to: openOptionsSel) {
+                let imp: IMP = current.method(for: openOptionsSel)
+                typealias OpenURLOptionsIMP = @convention(c) (
+                    AnyObject,
+                    Selector,
+                    NSURL,
+                    NSDictionary,
+                    @escaping @convention(block) (Bool) -> Void
+                ) -> Void
+                let openFn = unsafeBitCast(imp, to: OpenURLOptionsIMP.self)
+                openFn(current, openOptionsSel, url as NSURL, NSDictionary()) { [weak self] success in
+                    Task { @MainActor [weak self] in
                         if success {
                             self?.extensionContext?.completeRequest(returningItems: nil, completionHandler: nil)
                         } else {
-                            self?.statusLabel.text = "Tap 'Open in StitchScreenshot' to continue."
+                            self?.fallbackOpenHostApp(with: url)
                         }
                     }
                 }
@@ -170,7 +209,46 @@ final class ShareViewController: UIViewController {
             responder = current.next
         }
 
-        statusLabel.text = "Tap 'Open in StitchScreenshot' to continue."
+        fallbackOpenHostApp(with: url)
+    }
+
+    private func fallbackOpenHostApp(with url: URL) {
+        if let context = extensionContext {
+            context.open(url) { [weak self] success in
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    if success || self.invokeLegacyOpenURL(url) {
+                        self.extensionContext?.completeRequest(returningItems: nil, completionHandler: nil)
+                    } else {
+                        self.statusLabel.text = "Tap 'Open in StitchScreenshot' to continue."
+                    }
+                }
+            }
+            return
+        }
+
+        if invokeLegacyOpenURL(url) {
+            extensionContext?.completeRequest(returningItems: nil, completionHandler: nil)
+        } else {
+            statusLabel.text = "Tap 'Open in StitchScreenshot' to continue."
+        }
+    }
+
+    private func invokeLegacyOpenURL(_ url: URL) -> Bool {
+        let legacySel = sel_registerName("openURL:")
+        var responder: UIResponder? = self
+        while let current = responder {
+            if current.responds(to: legacySel) {
+                let imp: IMP = current.method(for: legacySel)
+                typealias LegacyOpenURLIMP = @convention(c) (AnyObject, Selector, NSURL) -> Bool
+                let openFn = unsafeBitCast(imp, to: LegacyOpenURLIMP.self)
+                if openFn(current, legacySel, url as NSURL) {
+                    return true
+                }
+            }
+            responder = current.next
+        }
+        return false
     }
 
     private func buildDeepLink(for targetURL: URL) -> URL? {
@@ -181,12 +259,36 @@ final class ShareViewController: UIViewController {
         return components.url
     }
 
-    private func isSupportedWebURL(_ url: URL) -> Bool {
-        guard let scheme = url.scheme?.lowercased() else { return false }
-        return scheme == "http" || scheme == "https"
+    private nonisolated static func resolveWebURL(from item: NSSecureCoding?) -> URL? {
+        if let url = item as? URL, isSupportedWebURL(url) {
+            return url
+        }
+        if let data = item as? Data {
+            if let url = URL(dataRepresentation: data, relativeTo: nil), isSupportedWebURL(url) {
+                return url
+            }
+            if let text = String(data: data, encoding: .utf8),
+               let extracted = extractWebURL(from: text) {
+                return extracted
+            }
+        }
+        if let text = item as? String, let extracted = extractWebURL(from: text) {
+            return extracted
+        }
+        return nil
     }
 
-    private func extractWebURL(from text: String) -> URL? {
+    private nonisolated static func isSupportedWebURL(_ url: URL) -> Bool {
+        guard let scheme = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https",
+              url.host?.isEmpty == false
+        else {
+            return false
+        }
+        return true
+    }
+
+    private nonisolated static func extractWebURL(from text: String) -> URL? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if let direct = URL(string: trimmed), isSupportedWebURL(direct) {
             return direct

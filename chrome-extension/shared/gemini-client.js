@@ -1,15 +1,16 @@
-import { sanitizeCssSelectors } from './stitch-math.js';
+import { sanitizeCssSelectors, filterCacheableSelectors } from './stitch-math.js';
 
 export const GEMINI_INTERACTIONS_URL = 'https://generativelanguage.googleapis.com/v1beta/interactions';
 export const GEMINI_API_REVISION = '2026-05-20';
 export const GEMINI_MODEL = 'gemini-3.8-flash';
+export const DEFAULT_GEMINI_TIMEOUT_MS = 20000;
 export const DOMAIN_CACHE_KEY = 'domainSelectorCache';
 export const DOMAIN_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const MAX_CACHED_DOMAINS = 100;
 
 /**
  * Extract JSON payload from a Gemini Interactions API response.
- * Checks `steps` (`model_output` -> `content`) first, then falls back to `outputs`.
+ * Checks `steps` (`model_output` -> string or array `content`) first, then falls back to `outputs`.
  * @param {object} responseJson
  * @returns {any}
  */
@@ -23,10 +24,22 @@ export function extractInteractionJson(responseJson) {
   if (Array.isArray(responseJson.steps)) {
     for (let i = responseJson.steps.length - 1; i >= 0; i--) {
       const step = responseJson.steps[i];
-      if (step?.type === 'model_output' && Array.isArray(step.content)) {
+      if (step?.type !== 'model_output') continue;
+
+      if (typeof step.content === 'string' && step.content.trim()) {
+        rawText = step.content.trim();
+        break;
+      }
+
+      if (Array.isArray(step.content)) {
         const textParts = step.content
-          .filter((item) => item?.type === 'text' && typeof item.text === 'string')
-          .map((item) => item.text);
+          .map((item) => {
+            if (typeof item === 'string') return item;
+            if (item?.type === 'text' && typeof item.text === 'string') return item.text;
+            if (typeof item?.text === 'string') return item.text;
+            return '';
+          })
+          .filter(Boolean);
         if (textParts.length > 0) {
           rawText = textParts.join('\n').trim();
           break;
@@ -63,40 +76,69 @@ export function extractInteractionJson(responseJson) {
 }
 
 /**
- * Call Gemini 3.8 Flash Interactions API with structured JSON output schema.
+ * Call Gemini 3.8 Flash Interactions API with structured JSON output schema and AbortController timeout.
  * @param {object} params
  * @param {string} params.apiKey
  * @param {string} params.input
  * @param {object} params.schema
  * @param {typeof fetch} [params.fetchImpl]
+ * @param {number} [params.timeoutMs]
  * @returns {Promise<any>}
  */
-export async function callGeminiStructured({ apiKey, input, schema, fetchImpl = fetch }) {
+export async function callGeminiStructured({
+  apiKey,
+  input,
+  schema,
+  fetchImpl = fetch,
+  timeoutMs = DEFAULT_GEMINI_TIMEOUT_MS
+}) {
   const key = String(apiKey || '').trim();
   if (!key) {
     throw new Error('Gemini API key is required');
   }
 
-  const response = await fetchImpl(GEMINI_INTERACTIONS_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-goog-api-key': key,
-      'Api-Revision': GEMINI_API_REVISION
-    },
-    body: JSON.stringify({
-      model: GEMINI_MODEL,
-      input,
-      response_format: {
-        type: 'text',
-        mime_type: 'application/json',
-        schema
-      }
-    })
-  });
+  const controller = new AbortController();
+  const effectiveTimeout = Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : DEFAULT_GEMINI_TIMEOUT_MS;
+  const timer = setTimeout(() => {
+    controller.abort();
+  }, effectiveTimeout);
+
+  let response;
+  try {
+    response = await fetchImpl(GEMINI_INTERACTIONS_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': key,
+        'Api-Revision': GEMINI_API_REVISION
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: GEMINI_MODEL,
+        input,
+        response_format: {
+          type: 'text',
+          mime_type: 'application/json',
+          schema
+        }
+      })
+    });
+  } catch (err) {
+    if (err?.name === 'AbortError' || controller.signal.aborted) {
+      throw new Error(`Gemini API request timed out after ${effectiveTimeout}ms`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (!response.ok) {
-    const errorBody = await response.text().catch(() => '');
+    let errorBody = '';
+    try {
+      errorBody = await response.text();
+    } catch {
+      errorBody = '';
+    }
     throw new Error(`Gemini API HTTP ${response.status}: ${errorBody.slice(0, 240)}`);
   }
 
@@ -105,14 +147,14 @@ export async function callGeminiStructured({ apiKey, input, schema, fetchImpl = 
 }
 
 /**
- * Identify CSS selectors of clutter overlays/banners/widgets to temporarily hide before screenshot capture.
+ * Identify CSS selectors of clutter overlays, banners, and inline ad containers to temporarily hide.
  * @param {string} apiKey
  * @param {object} domSummary
  * @param {object} [options]
  * @returns {Promise<string[]>}
  */
 export async function detectClutterSelectors(apiKey, domSummary, options = {}) {
-  const overlays = Array.isArray(domSummary?.overlays) ? domSummary.overlays.slice(0, 40) : [];
+  const overlays = Array.isArray(domSummary?.overlays) ? domSummary.overlays.slice(0, 50) : [];
   if (overlays.length === 0) return [];
 
   const schema = {
@@ -121,7 +163,8 @@ export async function detectClutterSelectors(apiKey, domSummary, options = {}) {
       selectors: {
         type: 'array',
         items: { type: 'string' },
-        description: 'Specific CSS selectors for temporary overlays, cookie banners, sticky bars, chat widgets, or ad containers to hide before screenshot capture.'
+        description:
+          'Specific CSS selectors for overlays, cookie banners, sticky promo bars, chat widgets, inline/in-between article ad containers, or sponsored widgets to hide before screenshot capture.'
       }
     },
     required: ['selectors']
@@ -131,8 +174,9 @@ export async function detectClutterSelectors(apiKey, domSummary, options = {}) {
     'You are inspecting compact DOM element metadata from a webpage prior to taking a clean full-page screenshot.',
     'Return ONLY specific CSS selectors (from the provided candidates) for non-content clutter to temporarily hide:',
     '- Cookie/consent banners, newsletter popups, paywall/login modals, floating chat widgets, sticky promo bars, and fixed ad banners.',
-    '- NEVER return broad tags like html, body, main, article, div, or primary article headers/content.',
-    '- Only return selectors that appear in or uniquely target the provided overlay candidates.',
+    '- Inline/in-between article ad containers, ad-slot reserve wrappers, and sponsored recommendation widgets (e.g., AdSense/GPT slots, Taboola, Outbrain).',
+    '- NEVER return broad structural or content tags like html, body, main, article, section, header, footer, nav, div, img, h1-h6, or primary site navigation headers / article content / legitimate media embeds.',
+    '- Only return selectors that appear in or uniquely target the provided clutter candidates.',
     '',
     `Page info: ${JSON.stringify({
       hostname: domSummary.hostname,
@@ -146,7 +190,8 @@ export async function detectClutterSelectors(apiKey, domSummary, options = {}) {
     apiKey,
     input,
     schema,
-    fetchImpl: options.fetchImpl
+    fetchImpl: options.fetchImpl,
+    timeoutMs: options.timeoutMs
   });
 
   return sanitizeCssSelectors(result?.selectors);
@@ -154,6 +199,7 @@ export async function detectClutterSelectors(apiKey, domSummary, options = {}) {
 
 /**
  * Identify the exact next-page URL from candidate pagination links on a webpage.
+ * Verifies the returned URL against resolved candidate URLs to prevent hallucinated URLs.
  * @param {string} apiKey
  * @param {object} pageContext
  * @param {object} [options]
@@ -161,10 +207,39 @@ export async function detectClutterSelectors(apiKey, domSummary, options = {}) {
  */
 export async function detectNextPageUrl(apiKey, pageContext, options = {}) {
   const candidates = Array.isArray(pageContext?.nextCandidates)
-    ? pageContext.nextCandidates.slice(0, 35)
+    ? pageContext.nextCandidates.slice(0, 40)
     : [];
 
   if (candidates.length === 0) {
+    return { nextPageUrl: null, confidence: 'high' };
+  }
+
+  let current;
+  try {
+    current = new URL(pageContext.currentUrl);
+  } catch {
+    return { nextPageUrl: null, confidence: 'low' };
+  }
+
+  const currentNormalized = `${current.origin}${current.pathname}${current.search}`;
+  const candidateUrlMap = new Map();
+  for (const item of candidates) {
+    if (!item?.href) continue;
+    try {
+      const resolvedCandidate = new URL(item.href, current);
+      if (resolvedCandidate.protocol !== 'http:' && resolvedCandidate.protocol !== 'https:') {
+        continue;
+      }
+      const norm = `${resolvedCandidate.origin}${resolvedCandidate.pathname}${resolvedCandidate.search}`;
+      if (norm !== currentNormalized && !candidateUrlMap.has(norm)) {
+        candidateUrlMap.set(norm, resolvedCandidate.href);
+      }
+    } catch {
+      // Ignore malformed candidate href
+    }
+  }
+
+  if (candidateUrlMap.size === 0) {
     return { nextPageUrl: null, confidence: 'high' };
   }
 
@@ -173,7 +248,8 @@ export async function detectNextPageUrl(apiKey, pageContext, options = {}) {
     properties: {
       nextPageUrl: {
         type: ['string', 'null'],
-        description: 'Absolute http/https URL of the next page in this paginated article/thread, or null if there is no next page.'
+        description:
+          'Absolute or relative URL from the provided candidates representing the next page in this paginated article/sequence, or null if there is no next page.'
       },
       confidence: {
         type: 'string',
@@ -186,9 +262,9 @@ export async function detectNextPageUrl(apiKey, pageContext, options = {}) {
   const input = [
     'You are determining whether a webpage is part of a multi-page article or paginated sequence and finding the exact Next Page URL.',
     'Rules:',
-    '- Pick ONLY the immediate next page (e.g., page N+1, "Next", "Continue reading", "Older posts"), never "Previous", "First", "Last", or unrelated related-article links.',
+    '- Pick ONLY the immediate next page (e.g., page N+1, "Next", "Next Page", "Continue reading", "Older posts"), never "Previous", "First", "Last", "/more" navigation menus, or unrelated "What\'s Next in..." related-article cards.',
     '- Return null if this appears to be a single-page article or the final page.',
-    '- The returned URL must be one of the candidate URLs resolved against currentUrl.',
+    '- The returned URL MUST match one of the provided candidate URLs.',
     '',
     `Context: ${JSON.stringify({
       currentUrl: pageContext.currentUrl,
@@ -201,7 +277,8 @@ export async function detectNextPageUrl(apiKey, pageContext, options = {}) {
     apiKey,
     input,
     schema,
-    fetchImpl: options.fetchImpl
+    fetchImpl: options.fetchImpl,
+    timeoutMs: options.timeoutMs
   });
 
   const rawUrl = result?.nextPageUrl;
@@ -210,17 +287,17 @@ export async function detectNextPageUrl(apiKey, pageContext, options = {}) {
   }
 
   try {
-    const current = new URL(pageContext.currentUrl);
     const resolved = new URL(rawUrl, current);
+    const resolvedNormalized = `${resolved.origin}${resolved.pathname}${resolved.search}`;
     if (
       (resolved.protocol !== 'http:' && resolved.protocol !== 'https:') ||
-      `${resolved.origin}${resolved.pathname}${resolved.search}` ===
-        `${current.origin}${current.pathname}${current.search}`
+      resolvedNormalized === currentNormalized ||
+      !candidateUrlMap.has(resolvedNormalized)
     ) {
       return { nextPageUrl: null, confidence: 'low' };
     }
     return {
-      nextPageUrl: resolved.href,
+      nextPageUrl: candidateUrlMap.get(resolvedNormalized) || resolved.href,
       confidence: result?.confidence || 'medium'
     };
   } catch {
@@ -244,11 +321,11 @@ export async function getCachedSelectorsForDomain(storage, hostname, now = Date.
   if (typeof entry.updatedAt === 'number' && now - entry.updatedAt > DOMAIN_CACHE_TTL_MS) {
     return null;
   }
-  return entry.selectors;
+  return filterCacheableSelectors(entry.selectors);
 }
 
 /**
- * Cache clutter CSS selectors for a domain in chrome.storage.local.
+ * Cache clutter CSS selectors for a domain in chrome.storage.local after stripping dynamic instance IDs.
  * @param {chrome.storage.StorageArea} storage
  * @param {string} hostname
  * @param {string[]} selectors
@@ -256,10 +333,13 @@ export async function getCachedSelectorsForDomain(storage, hostname, now = Date.
  */
 export async function setCachedSelectorsForDomain(storage, hostname, selectors, now = Date.now()) {
   if (!storage || !hostname) return;
+  const cacheable = filterCacheableSelectors(selectors);
+  if (cacheable.length === 0) return;
+
   const data = await storage.get({ [DOMAIN_CACHE_KEY]: {} });
   const cache = { ...(data[DOMAIN_CACHE_KEY] || {}) };
   cache[hostname] = {
-    selectors: sanitizeCssSelectors(selectors),
+    selectors: cacheable,
     updatedAt: now
   };
 

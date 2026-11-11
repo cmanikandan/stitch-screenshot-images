@@ -49,8 +49,11 @@
     </section>
 
     <div class="feedback-area">
-      <progress id="capture-progress" class="progress-bar" hidden></progress>
+      <progress id="capture-progress" class="progress-bar" aria-label="Capture progress" hidden></progress>
       <div id="status-banner" role="status" aria-live="polite" class="status-banner" hidden></div>
+      <button id="btn-cancel-capture" type="button" class="btn btn-ghost btn-cancel" hidden>
+        Cancel Capture
+      </button>
     </div>
 
     <section id="preview-section" class="card" aria-labelledby="preview-heading" hidden>

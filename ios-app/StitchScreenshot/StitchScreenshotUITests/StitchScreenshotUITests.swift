@@ -1,43 +1,46 @@
-//
-//  StitchScreenshotUITests.swift
-//  StitchScreenshotUITests
-//
-//  Created by Manikandan Chandrasekaran on 10/11/26.
-//
-
+import Foundation
 import XCTest
 
 final class StitchScreenshotUITests: XCTestCase {
-
     override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
-
-        // In UI tests it is usually best to stop immediately when a failure occurs.
         continueAfterFailure = false
-
-        // In UI tests it’s important to set the initial state - such as interface orientation - required for your tests before they run. The setUp method is a good place to do this.
-    }
-
-    override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
     }
 
     @MainActor
-    func testExample() throws {
-        // UI tests must launch the application that they test.
+    func testBrowserLandingControlsAndSettingsSheetSmoke() throws {
         let app = XCUIApplication()
         app.launch()
 
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-        // XCUIAutomation Documentation
-        // https://developer.apple.com/documentation/xcuiautomation
-    }
+        let addressField = app.textFields["Enter URL or paste link..."]
+        XCTAssertTrue(addressField.waitForExistence(timeout: 5))
 
-    @MainActor
-    func testLaunchPerformance() throws {
-        // This measures how long it takes to launch your application.
-        measure(metrics: [XCTApplicationLaunchMetric()]) {
-            XCUIApplication().launch()
-        }
+        XCTAssertTrue(app.staticTexts["StitchScreenshot"].exists)
+        XCTAssertTrue(app.buttons["Paste URL & Open"].exists)
+
+        let swiftQuickLink = app.buttons.containing(
+            NSPredicate(format: "label CONTAINS %@", "Wikipedia: Swift")
+        ).firstMatch
+        XCTAssertTrue(swiftQuickLink.exists)
+
+        let fullPageButton = app.buttons["Full Page"]
+        let autoStitchButton = app.buttons["Auto Stitch"]
+        let appendButton = app.buttons["Append"]
+
+        XCTAssertTrue(fullPageButton.exists)
+        XCTAssertTrue(autoStitchButton.exists)
+        XCTAssertTrue(appendButton.exists)
+
+        // Capture buttons remain disabled until a page has committed content.
+        XCTAssertFalse(fullPageButton.isEnabled)
+        XCTAssertFalse(autoStitchButton.isEnabled)
+        XCTAssertFalse(appendButton.isEnabled)
+
+        let settingsButton = app.buttons["Settings"]
+        XCTAssertTrue(settingsButton.exists)
+        settingsButton.tap()
+
+        let doneButton = app.buttons["Done"]
+        XCTAssertTrue(doneButton.waitForExistence(timeout: 3))
+        doneButton.tap()
     }
 }

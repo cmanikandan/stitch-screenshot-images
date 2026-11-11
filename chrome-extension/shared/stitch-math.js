@@ -10,18 +10,70 @@ export const DEFAULT_MAX_SCROLL_CSS_HEIGHT = 60000;
 
 const FORBIDDEN_SELECTORS = new Set([
   '*',
+  ':root',
   'html',
   'body',
   'head',
   'main',
   'article',
   'section',
-  ':root',
+  'header',
+  'footer',
+  'nav',
+  'aside',
   'div',
   'span',
   'p',
-  'a'
+  'a',
+  'img',
+  'picture',
+  'figure',
+  'figcaption',
+  'video',
+  'audio',
+  'canvas',
+  'svg',
+  'iframe',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'ul',
+  'ol',
+  'li',
+  'dl',
+  'dt',
+  'dd',
+  'table',
+  'thead',
+  'tbody',
+  'tfoot',
+  'tr',
+  'td',
+  'th',
+  'form',
+  'button',
+  'input',
+  'select',
+  'textarea',
+  'label',
+  'pre',
+  'code',
+  'blockquote',
+  '[role="main"]',
+  "[role='main']",
+  '[role=main]',
+  '[role="article"]',
+  "[role='article']",
+  '[role=article]',
+  '[role="navigation"]',
+  "[role='navigation']",
+  '[role=navigation]'
 ]);
+
+const DYNAMIC_INSTANCE_ID_RE = /#[^\s.#\[]*(?:\d{3,}|[-_]\d+\b)/i;
 
 /**
  * Compute uniform scale <= 1 so width, height, and pixel area fit safe canvas limits.
@@ -50,6 +102,16 @@ export function computeSafeCanvasScale(
   const area = width * scale * (height * scale);
   if (area > maxCanvasArea) {
     scale = Math.min(scale, Math.sqrt(maxCanvasArea / (width * height)));
+  }
+
+  // Guard against Math.round pushing scaled width * height past maxCanvasArea
+  while (
+    scale > 0 &&
+    (Math.round(width * scale) > maxCanvasWidth ||
+      Math.round(height * scale) > maxCanvasHeight ||
+      Math.round(width * scale) * Math.round(height * scale) > maxCanvasArea)
+  ) {
+    scale *= 0.9999;
   }
   return scale;
 }
@@ -98,6 +160,8 @@ export function computeScrollOffsets({
 
 /**
  * Compute source-crop and destination placements for stitching viewport captures.
+ * Guarantees contiguous destination seams (dy[i] + dh[i] === dy[i+1]) even when
+ * DPR is fractional (1.25, 1.5, 1.75) or canvas downscaling (scale < 1) is applied.
  * @param {object} params
  * @param {Array<{ actualScrollY: number, imageWidth: number, imageHeight: number }>} params.slices
  * @param {number} params.scrollHeight
@@ -143,10 +207,16 @@ export function computeViewportStitchPlan({
     if (drawCss <= 0) continue;
 
     const sy = Math.min(slice.imageHeight, Math.max(0, Math.round(overlapCss * pxPerCssY)));
-    const sh = Math.min(slice.imageHeight - sy, Math.max(1, Math.round(drawCss * pxPerCssY)));
-    const dy = Math.round(destCssY * pxPerCssY);
-
+    const syEnd = Math.min(
+      slice.imageHeight,
+      Math.max(sy + 1, Math.round((overlapCss + drawCss) * pxPerCssY))
+    );
+    const sh = syEnd - sy;
     if (sh <= 0) continue;
+
+    const dy = Math.round(destCssY * pxPerCssY);
+    const nextUnscaledDy = Math.max(dy + 1, Math.round((destCssY + drawCss) * pxPerCssY));
+    const unscaledDh = nextUnscaledDy - dy;
 
     rawPlacements.push({
       index: i,
@@ -157,11 +227,11 @@ export function computeViewportStitchPlan({
       dx: 0,
       dy,
       dw: baseWidth,
-      dh: sh
+      dh: unscaledDh
     });
 
     coveredCssY = destCssY + drawCss;
-    maxBottomPx = Math.max(maxBottomPx, dy + sh);
+    maxBottomPx = Math.max(maxBottomPx, dy + unscaledDh);
   }
 
   const unscaledHeight = Math.max(1, maxBottomPx);
@@ -171,26 +241,42 @@ export function computeViewportStitchPlan({
     maxCanvasArea
   });
 
-  const width = Math.max(1, Math.floor(baseWidth * scale));
-  const height = Math.max(1, Math.floor(unscaledHeight * scale));
+  const width = Math.min(maxCanvasWidth, Math.max(1, Math.round(baseWidth * scale)));
 
-  const placements = rawPlacements.map((p) => ({
-    index: p.index,
-    sx: p.sx,
-    sy: p.sy,
-    sw: p.sw,
-    sh: p.sh,
-    dx: Math.round(p.dx * scale),
-    dy: Math.round(p.dy * scale),
-    dw: Math.max(1, Math.round(p.dw * scale)),
-    dh: Math.max(1, Math.round(p.dh * scale))
-  }));
+  const placements = rawPlacements.map((p) => {
+    const dx = Math.round(p.dx * scale);
+    const nextDx = Math.min(width, Math.max(dx + 1, Math.round((p.dx + p.dw) * scale)));
+    const dw = Math.max(1, nextDx - dx);
+
+    const dy = Math.min(maxCanvasHeight - 1, Math.max(0, Math.round(p.dy * scale)));
+    const nextDy = Math.min(maxCanvasHeight, Math.max(dy + 1, Math.round((p.dy + p.dh) * scale)));
+    const dh = Math.max(1, nextDy - dy);
+
+    return {
+      index: p.index,
+      sx: p.sx,
+      sy: p.sy,
+      sw: p.sw,
+      sh: p.sh,
+      dx,
+      dy,
+      dw,
+      dh
+    };
+  });
+
+  const lastPlacement = placements[placements.length - 1];
+  const height = lastPlacement
+    ? Math.min(maxCanvasHeight, Math.max(1, lastPlacement.dy + lastPlacement.dh))
+    : Math.min(maxCanvasHeight, Math.max(1, Math.round(unscaledHeight * scale)));
 
   return { width, height, scale, placements };
 }
 
 /**
  * Compute vertical stacking layout for multiple captured page images.
+ * Uses cumulative scaled endpoints so zero-gap multi-page stitches never suffer
+ * 1px transparent seams or bottom clipping/dead strips when scale < 1.
  * @param {Array<{ width: number, height: number }>} dimensions
  * @param {object} [options]
  * @returns {{ width: number, height: number, scale: number, placements: Array<{ index: number, x: number, y: number, width: number, height: number }> }}
@@ -212,7 +298,7 @@ export function computeMultiPageLayout(
   const totalGap = Math.max(0, dimensions.length - 1) * gapPx;
   const unscaledHeight = Math.max(
     1,
-    dimensions.reduce((sum, d) => sum + Math.round(d.height), 0) + totalGap
+    dimensions.reduce((sum, d) => sum + Math.max(1, Math.round(d.height)), 0) + totalGap
   );
 
   const scale = computeSafeCanvasScale(unscaledWidth, unscaledHeight, {
@@ -221,24 +307,34 @@ export function computeMultiPageLayout(
     maxCanvasArea
   });
 
-  const width = Math.max(1, Math.floor(unscaledWidth * scale));
-  const height = Math.max(1, Math.floor(unscaledHeight * scale));
+  const width = Math.min(maxCanvasWidth, Math.max(1, Math.round(unscaledWidth * scale)));
 
-  let cursorY = 0;
+  let unscaledCursorY = 0;
   const placements = dimensions.map((d, index) => {
-    const scaledW = Math.max(1, Math.round(d.width * scale));
-    const scaledH = Math.max(1, Math.round(d.height * scale));
+    const rawPageH = Math.max(1, Math.round(d.height));
+    const scaledW = Math.min(width, Math.max(1, Math.round(d.width * scale)));
+    const y = Math.min(maxCanvasHeight - 1, Math.max(0, Math.round(unscaledCursorY * scale)));
+    const nextY = Math.min(
+      maxCanvasHeight,
+      Math.max(y + 1, Math.round((unscaledCursorY + rawPageH) * scale))
+    );
+    const scaledH = Math.max(1, nextY - y);
     const x = Math.max(0, Math.floor((width - scaledW) / 2));
-    const y = cursorY;
-    cursorY += scaledH + Math.round(gapPx * scale);
+    unscaledCursorY += rawPageH + gapPx;
     return { index, x, y, width: scaledW, height: scaledH };
   });
+
+  const lastPlacement = placements[placements.length - 1];
+  const height = lastPlacement
+    ? Math.min(maxCanvasHeight, Math.max(1, lastPlacement.y + lastPlacement.height))
+    : Math.min(maxCanvasHeight, Math.max(1, Math.round(unscaledHeight * scale)));
 
   return { width, height, scale, placements };
 }
 
 /**
- * Extract trailing or query page integer from a URL if present.
+ * Extract trailing or query page/part integer from a URL if present.
+ * Ignores YYYY/MM/DD calendar date URLs.
  * @param {URL} urlObj
  * @returns {number | null}
  */
@@ -249,16 +345,31 @@ function extractPageNumber(urlObj) {
       return Number.parseInt(val, 10);
     }
   }
-  const pathMatch = urlObj.pathname.match(/(?:\/page\/|\/p\/|-page-|\/)(\d+)(?:\/|\.html?)?$/i);
-  if (pathMatch) {
-    return Number.parseInt(pathMatch[1], 10);
+
+  const pathname = urlObj.pathname;
+  if (/\/\d{4}\/\d{1,2}\/\d{1,2}\/?$/.test(pathname)) {
+    return null;
+  }
+
+  const explicitMatch = pathname.match(
+    /(?:\/page\/|\/p\/|\/part\/|-page-|-part-|_page_|_part_)(\d+)(?:\/|\.html?)?$/i
+  );
+  if (explicitMatch) {
+    return Number.parseInt(explicitMatch[1], 10);
+  }
+
+  const trailingMatch = pathname.match(/\/(\d{1,3})(?:\/|\.html?)?$/);
+  if (trailingMatch) {
+    return Number.parseInt(trailingMatch[1], 10);
   }
   return null;
 }
 
 /**
  * Score candidate pagination links heuristically and pick the best next-page URL.
- * @param {Array<{ href: string, text?: string, rel?: string, ariaLabel?: string, className?: string, id?: string }>} candidates
+ * Rejects header "/more" links and unrelated blog cards like "What's Next in..."
+ * while reliably scoring rel="next", explicit pagination controls, and page N+1 URLs.
+ * @param {Array<{ href: string, text?: string, rel?: string, ariaLabel?: string, className?: string, id?: string, inPagination?: boolean }>} candidates
  * @param {string} currentUrl
  * @returns {{ url: string, score: number, reason: string } | null}
  */
@@ -276,6 +387,20 @@ export function scoreNextPageCandidates(candidates, currentUrl) {
   const currentNoHash = `${current.origin}${current.pathname}${current.search}`;
   const seen = new Set();
   const scored = [];
+
+  const EXACT_NEXT_TEXT_RE =
+    /^(?:next(?:\s+(?:page|part|chapter|posts|entries))?(?:\s*[→›»>]+)?|[→›»>]+\s*next|older\s+(?:posts|entries)|continue\s+reading)$/i;
+  const ARROW_ONLY_RE = /^(?:→|›|»|>)$/;
+  const NEXT_ARIA_RE = /\b(?:next\s*(?:page|part|post|posts|entries|chapter)|go\s+to\s+next|pagination\s+next)\b|^next$/i;
+  const NEXT_CLASS_TOKEN_RE =
+    /(?:^|[\s_-])(?:pagination-next|pager-next|nav-next|page-next|next-page|next_page|nextpostslink)(?:$|[\s_-])/i;
+  const PAGINATION_CLASS_RE = /(?:^|[\s_-])(?:pagination|pager|page-numbers|pagenavi|wp-pagenavi)(?:$|[\s_-])/i;
+  const FALSE_NEXT_PHRASE_RE =
+    /\b(?:what['’]?s\s+next|whats\s+next|up\s+next|read\s+next|watch\s+next|next\s+(?:gen|generation|level|week|month|year|step|steps|time|big\s+thing))\b/i;
+  const NEGATIVE_META_RE =
+    /\b(?:prev|previous|back|older\s+than|newer|first|last|login|log\s*in|sign\s*in|sign\s*up|register|subscribe|share|comment|comments|reply|author|category|tag|privacy|terms|pricing|about|contact)\b/i;
+  const NON_PAGINATION_PATH_RE =
+    /^\/(?:more|about|contact|login|signin|signup|register|subscribe|pricing|privacy|terms|search|tags?|categories|category|authors?|author)(?:\/|$)/i;
 
   for (const item of candidates) {
     if (!item?.href) continue;
@@ -296,38 +421,75 @@ export function scoreNextPageCandidates(candidates, currentUrl) {
     let score = 0;
     const reasons = [];
 
-    const rel = String(item.rel || '').toLowerCase();
-    const text = String(item.text || '').trim();
+    const relTokens = String(item.rel || '')
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(Boolean);
+    const text = String(item.text || '').replace(/\s+/g, ' ').trim();
     const textLower = text.toLowerCase();
-    const ariaLower = String(item.ariaLabel || '').toLowerCase();
-    const metaLower = `${item.className || ''} ${item.id || ''}`.toLowerCase();
+    const aria = String(item.ariaLabel || '').replace(/\s+/g, ' ').trim();
+    const ariaLower = aria.toLowerCase();
+    const meta = `${item.className || ''} ${item.id || ''}`;
+    const metaLower = meta.toLowerCase();
+    const hasPaginationContext = Boolean(item.inPagination) || PAGINATION_CLASS_RE.test(meta);
 
-    if (rel.split(/\s+/).includes('next')) {
+    if (relTokens.includes('next')) {
       score += 100;
       reasons.push('rel=next');
     }
 
     if (resolved.origin === current.origin) {
-      score += 20;
+      score += 15;
       reasons.push('same-origin');
     } else {
-      score -= 60;
+      score -= 80;
     }
 
-    if (/^(next(\s+page)?|older(\s+posts)?|continue(\s+reading)?|more|→|›|»|>)$/i.test(text)) {
+    if (hasPaginationContext) {
+      score += 20;
+      reasons.push('pagination-container');
+    }
+
+    if (EXACT_NEXT_TEXT_RE.test(text)) {
       score += 60;
       reasons.push('exact-next-text');
-    } else if (/\bnext\b/i.test(textLower) || /\bnext\b/i.test(ariaLower)) {
-      score += 40;
-      reasons.push('contains-next');
-    } else if (/\bnext\b/i.test(metaLower)) {
-      score += 25;
-      reasons.push('next-class-or-id');
+    } else if (ARROW_ONLY_RE.test(text) && (hasPaginationContext || NEXT_ARIA_RE.test(aria))) {
+      score += 50;
+      reasons.push('pagination-arrow');
+    } else if (NEXT_ARIA_RE.test(aria)) {
+      score += 50;
+      reasons.push('next-aria-label');
+    } else if (
+      text.length > 0 &&
+      text.length <= 24 &&
+      /\bnext\b/i.test(textLower) &&
+      !FALSE_NEXT_PHRASE_RE.test(textLower)
+    ) {
+      score += 35;
+      reasons.push('short-next-label');
     }
 
-    if (/\b(prev|previous|back|older\s+than|first|login|sign\s*in|share|comment)\b/i.test(`${textLower} ${ariaLower} ${metaLower}`)) {
+    if (NEXT_CLASS_TOKEN_RE.test(meta)) {
+      score += 30;
+      reasons.push('next-class-or-id');
+    } else if (hasPaginationContext && /(?:^|[\s_-])next(?:$|[\s_-])/i.test(meta)) {
+      score += 25;
+      reasons.push('pagination-next-token');
+    }
+
+    if (FALSE_NEXT_PHRASE_RE.test(`${textLower} ${ariaLower}`)) {
+      score -= 80;
+      reasons.push('false-next-phrase');
+    }
+
+    if (NEGATIVE_META_RE.test(`${textLower} ${ariaLower} ${metaLower}`) || relTokens.includes('prev')) {
       score -= 100;
       reasons.push('negative-keyword');
+    }
+
+    if (NON_PAGINATION_PATH_RE.test(resolved.pathname) && !relTokens.includes('next')) {
+      score -= 80;
+      reasons.push('non-pagination-path');
     }
 
     const candidatePageNum = extractPageNumber(resolved);
@@ -339,11 +501,12 @@ export function scoreNextPageCandidates(candidates, currentUrl) {
         score += 55;
         reasons.push('page-2-from-1');
       } else if (currentPageNum !== null && candidatePageNum <= currentPageNum) {
-        score -= 50;
+        score -= 60;
+        reasons.push('non-advancing-page');
       }
     }
 
-    if (score >= 30) {
+    if (score >= 45) {
       scored.push({
         url: resolved.href,
         score,
@@ -357,11 +520,13 @@ export function scoreNextPageCandidates(candidates, currentUrl) {
 }
 
 /**
- * Filter CSS selectors to safe, non-destructive element/class/id selectors.
+ * Filter CSS selectors to safe, non-destructive element/class/id/attribute selectors.
  * @param {unknown} selectors
+ * @param {object} [options]
+ * @param {number} [options.maxSelectors]
  * @returns {string[]}
  */
-export function sanitizeCssSelectors(selectors) {
+export function sanitizeCssSelectors(selectors, { maxSelectors = 200 } = {}) {
   if (!Array.isArray(selectors)) return [];
   const valid = [];
   const seen = new Set();
@@ -369,13 +534,24 @@ export function sanitizeCssSelectors(selectors) {
   for (const raw of selectors) {
     if (typeof raw !== 'string') continue;
     const s = raw.trim();
-    if (!s || s.length > 180) continue;
-    if (/[{};<>`]/.test(s)) continue;
-    if (FORBIDDEN_SELECTORS.has(s.toLowerCase())) continue;
+    if (!s || s.length > 220) continue;
+    if (/[{};<>`@]/.test(s) || s.includes('/*') || s.includes('*/')) continue;
+
+    const normalizedLower = s.toLowerCase().replace(/\s+/g, ' ');
+    if (FORBIDDEN_SELECTORS.has(normalizedLower)) continue;
     if (seen.has(s)) continue;
     seen.add(s);
     valid.push(s);
   }
 
-  return valid.slice(0, 30);
+  return valid.slice(0, maxSelectors);
+}
+
+/**
+ * Filter out selectors with dynamic per-impression numeric IDs before caching per domain.
+ * @param {unknown} selectors
+ * @returns {string[]}
+ */
+export function filterCacheableSelectors(selectors) {
+  return sanitizeCssSelectors(selectors).filter((sel) => !DYNAMIC_INSTANCE_ID_RE.test(sel));
 }

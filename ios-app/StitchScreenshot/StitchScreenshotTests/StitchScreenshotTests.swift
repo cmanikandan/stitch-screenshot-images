@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 import UIKit
 import XCTest
@@ -46,6 +47,54 @@ final class StitchScreenshotTests: XCTestCase {
         XCTAssertLessThan(bottomPixel.r, 30)
     }
 
+    func testStitchVerticallyRetina3xImagesPreservesFullPixelResolution() throws {
+        // 100x80 pt @3x = 300x240 px per slice
+        let topRetina = makeSolidImage(width: 100, height: 80, scale: 3.0, color: .red)
+        let bottomRetinaRaw = makeSolidImage(width: 100, height: 100, scale: 3.0, color: .blue)
+        // Crop 60px (20pt @3x) overlap from top of second @3x slice -> 300x240 px remaining
+        let bottomRetina = try XCTUnwrap(ImageStitcher.cropTopAndBottomOverlap(bottomRetinaRaw, topCropPixels: 60))
+
+        XCTAssertEqual(ImageStitcher.pixelSize(of: topRetina).width, 300)
+        XCTAssertEqual(ImageStitcher.pixelSize(of: topRetina).height, 240)
+        XCTAssertEqual(ImageStitcher.pixelSize(of: bottomRetina).height, 240)
+
+        let stitched = try ImageStitcher.stitchVertically([topRetina, bottomRetina])
+        let stitchedSize = ImageStitcher.pixelSize(of: stitched)
+        XCTAssertEqual(stitchedSize.width, 300)
+        XCTAssertEqual(stitchedSize.height, 480)
+
+        let upperSample = try XCTUnwrap(pixelRGBA(in: stitched, x: 150, y: 120))
+        XCTAssertGreaterThan(upperSample.r, 220)
+        XCTAssertLessThan(upperSample.b, 30)
+
+        let lowerSample = try XCTUnwrap(pixelRGBA(in: stitched, x: 150, y: 360))
+        XCTAssertGreaterThan(lowerSample.b, 220)
+        XCTAssertLessThan(lowerSample.r, 30)
+    }
+
+    func testStitchVertically35SliceDownscaleEliminatesCumulativeRoundingDrift() throws {
+        // 35 slices of 120x200 px (rawTotalHeight = 7000) downscaled to maxPixelHeight = 368 (each slice ~10.514 px).
+        // Under naive per-slice `round(10.514) == 11`, 34 * 11 = 374 > 368, which previously crushed slice 35 to 1px!
+        var slices: [UIImage] = []
+        for idx in 0..<35 {
+            let color: UIColor = (idx == 34) ? .blue : ((idx % 2 == 0) ? .red : .green)
+            slices.append(makeSolidImage(width: 120, height: 200, color: color))
+        }
+
+        let config = StitchConfiguration(maxPixelWidth: 1000, maxPixelHeight: 368)
+        let stitched = try ImageStitcher.stitchVertically(slices, configuration: config)
+        let dims = ImageStitcher.pixelSize(of: stitched)
+        XCTAssertEqual(dims.height, 368)
+
+        // The 35th (blue) slice should occupy approximately the bottom 10-11 pixels (y = 358..367), not 1px.
+        let nearBottomOfLastSlice = try XCTUnwrap(pixelRGBA(in: stitched, x: dims.width / 2, y: 366))
+        let midOfLastSlice = try XCTUnwrap(pixelRGBA(in: stitched, x: dims.width / 2, y: 360))
+        XCTAssertGreaterThan(nearBottomOfLastSlice.b, 200)
+        XCTAssertLessThan(nearBottomOfLastSlice.r, 40)
+        XCTAssertGreaterThan(midOfLastSlice.b, 200)
+        XCTAssertLessThan(midOfLastSlice.r, 40)
+    }
+
     func testStitchVerticallyScalesMismatchedWidthsProportionally() throws {
         let wide = makeSolidImage(width: 200, height: 100, color: .green)
         let narrow = makeSolidImage(width: 100, height: 100, color: .yellow)
@@ -79,7 +128,7 @@ final class StitchScreenshotTests: XCTestCase {
         XCTAssertNil(ImageStitcher.cropTopAndBottomOverlap(image, topCropPixels: 250))
     }
 
-    func testEncodePNGAndJPEGHeaders() throws {
+    func testEncodePNGAndJPEGHeadersAndPrunesStaleTempFiles() throws {
         let image = makeSolidImage(width: 32, height: 32, color: .orange)
 
         let pngData = try ImageStitcher.encode(image, format: .png)
@@ -87,9 +136,26 @@ final class StitchScreenshotTests: XCTestCase {
 
         let jpegData = try ImageStitcher.encode(image, format: .jpeg, jpegQuality: 0.9)
         XCTAssertEqual(Array(jpegData.prefix(2)), [0xFF, 0xD8])
+
+        let tempSubdir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("StitchPruneTest-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: tempSubdir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempSubdir) }
+
+        let staleFile = tempSubdir.appendingPathComponent("StitchScreenshot-old.png")
+        let freshFile = tempSubdir.appendingPathComponent("StitchScreenshot-fresh.png")
+        try pngData.write(to: staleFile)
+        try pngData.write(to: freshFile)
+
+        let twoHoursAgo = Date().addingTimeInterval(-7200)
+        try FileManager.default.setAttributes([.modificationDate: twoHoursAgo], ofItemAtPath: staleFile.path)
+
+        ImageStitcher.pruneTemporaryImageFiles(in: tempSubdir, olderThan: 3600, now: Date())
+        XCTAssertFalse(FileManager.default.fileExists(atPath: staleFile.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: freshFile.path))
     }
 
-    // MARK: - GeminiService Tests
+    // MARK: - GeminiService, Sanitizer & Cache Tests
 
     func testGeminiBuildRequestIncludesRequiredHeadersAndModel() throws {
         let service = GeminiService(
@@ -118,7 +184,16 @@ final class StitchScreenshotTests: XCTestCase {
         let decodedBody = try JSONDecoder().decode(GeminiInteractionsRequest.self, from: bodyData)
         XCTAssertEqual(decodedBody.model, "gemini-3.8-flash")
         XCTAssertEqual(decodedBody.input, "Find clutter")
-        XCTAssertEqual(decodedBody.responseFormat, schema)
+        XCTAssertEqual(decodedBody.responseFormat.type, "text")
+        XCTAssertEqual(decodedBody.responseFormat.mimeType, "application/json")
+        XCTAssertEqual(decodedBody.responseFormat.schema, schema)
+
+        let rawJSON = try XCTUnwrap(JSONSerialization.jsonObject(with: bodyData) as? [String: Any])
+        XCTAssertNil(rawJSON["generation_config"])
+        let rawResponseFormat = try XCTUnwrap(rawJSON["response_format"] as? [String: Any])
+        XCTAssertEqual(rawResponseFormat["type"] as? String, "text")
+        XCTAssertEqual(rawResponseFormat["mime_type"] as? String, "application/json")
+        XCTAssertNotNil(rawResponseFormat["schema"])
     }
 
     func testGeminiDecodesStepsModelOutputWithCodeFences() throws {
@@ -144,38 +219,119 @@ final class StitchScreenshotTests: XCTestCase {
         XCTAssertEqual(decoded.selectors, [".cookie-banner", "#chat-widget"])
     }
 
-    func testGeminiDecodesStepsContentPartsAndOutputsFallback() throws {
+    func testGeminiDecodesStepsIgnoringThoughtPartsAndDecodesPlainStringOutputs() throws {
         let service = GeminiService(
             transport: MockHTTPTransport { _ in fatalError("Not called") },
             keychain: InMemoryKeychain(key: "k"),
             selectorCache: DomainSelectorCache(defaults: testDefaults)
         )
 
-        let partsJSON = """
+        let thoughtAndTextStepsJSON = """
         {
           "steps": [
             {
               "type": "model_output",
               "content": [
+                { "type": "thought", "text": "Reasoning about sticky headers and inline ad slots (not JSON)..." },
                 { "type": "text", "text": "{\\"next_page_url\\": \\"https://example.com/page/2\\", \\"confidence\\": 0.95}" }
               ]
             }
           ]
         }
         """
-        let fromParts = try service.decodeStructuredOutput(NextPageResult.self, from: Data(partsJSON.utf8))
+        let fromParts = try service.decodeStructuredOutput(NextPageResult.self, from: Data(thoughtAndTextStepsJSON.utf8))
         XCTAssertEqual(fromParts.nextPageURL, "https://example.com/page/2")
         XCTAssertEqual(fromParts.confidence, 0.95)
 
-        let outputsJSON = """
+        let keyedOutputsJSON = """
         {
           "outputs": [
             { "type": "text", "text": "{\\"selectors\\": [\\"#newsletter-modal\\"]}" }
           ]
         }
         """
-        let fromOutputs = try service.decodeStructuredOutput(ClutterSelectorsResult.self, from: Data(outputsJSON.utf8))
-        XCTAssertEqual(fromOutputs.selectors, ["#newsletter-modal"])
+        let fromKeyedOutputs = try service.decodeStructuredOutput(ClutterSelectorsResult.self, from: Data(keyedOutputsJSON.utf8))
+        XCTAssertEqual(fromKeyedOutputs.selectors, ["#newsletter-modal"])
+
+        let plainStringOutputsJSON = """
+        {
+          "outputs": [
+            "{\\"selectors\\": [\\"ins.adsbygoogle\\", \\"#cookie-banner\\"]}"
+          ]
+        }
+        """
+        let fromStringOutputs = try service.decodeStructuredOutput(ClutterSelectorsResult.self, from: Data(plainStringOutputsJSON.utf8))
+        XCTAssertEqual(fromStringOutputs.selectors, ["ins.adsbygoogle", "#cookie-banner"])
+    }
+
+    func testCSSSelectorSanitizerBlocksUnsafeTagsAndInjectionWhileKeepingValidSelectors() {
+        let rawSelectors = [
+            "body",
+            "div",
+            "article",
+            "header",
+            "main",
+            "*",
+            ":root",
+            "body.modal-open",
+            "article.story-body",
+            "#cookie-banner, body",
+            "#bad { display: block }",
+            ".bad; color: red",
+            "<script>",
+            "@import url('x')",
+            "/* comment */ .ad",
+            "  #cookie-banner  ",
+            "ins.adsbygoogle",
+            "[id^=\"div-gpt-ad\"]",
+            "#cookie-banner" // duplicate
+        ]
+
+        let sanitized = CSSSelectorSanitizer.sanitize(rawSelectors)
+        XCTAssertEqual(sanitized, [
+            "#cookie-banner",
+            "ins.adsbygoogle",
+            "[id^=\"div-gpt-ad\"]"
+        ])
+
+        // Verify 30-selector cap
+        let fortyValid = (1...40).map { "#ad-slot-\($0)" }
+        XCTAssertEqual(CSSSelectorSanitizer.sanitize(fortyValid).count, 30)
+    }
+
+    func testDomainSelectorCacheSevenDayTTLAndEmptyHandling() throws {
+        let clock = MutableClock(Date(timeIntervalSince1970: 1_700_000_000))
+        let cache = DomainSelectorCache(
+            defaults: testDefaults,
+            storageKey: "stitch.testCache",
+            nowProvider: { clock.now }
+        )
+
+        // Empty array and unsafe-only selectors must NOT be cached.
+        cache.save(selectors: [], for: "empty.example.com")
+        cache.save(selectors: ["body", "div", "article"], for: "unsafe.example.com")
+        XCTAssertNil(cache.selectors(for: "empty.example.com"))
+        XCTAssertNil(cache.selectors(for: "unsafe.example.com"))
+        XCTAssertEqual(cache.cachedDomainCount, 0)
+
+        // Valid selectors are sanitized and returned within the 7-day TTL.
+        cache.save(selectors: ["body", "#cookie-banner", "ins.adsbygoogle"], for: "News.Example.com")
+        XCTAssertEqual(cache.selectors(for: "news.example.com"), ["#cookie-banner", "ins.adsbygoogle"])
+        XCTAssertEqual(cache.cachedDomainCount, 1)
+
+        // Advance 6 days -> still valid.
+        clock.now = clock.now.addingTimeInterval(6 * 24 * 60 * 60)
+        XCTAssertEqual(cache.selectors(for: "news.example.com"), ["#cookie-banner", "ins.adsbygoogle"])
+
+        // Advance past 7 days -> expired and evicted.
+        clock.now = clock.now.addingTimeInterval(2 * 24 * 60 * 60)
+        XCTAssertNil(cache.selectors(for: "news.example.com"))
+        XCTAssertEqual(cache.cachedDomainCount, 0)
+
+        // Legacy `[String: [String]]` UserDefaults format remains backward compatible.
+        let legacyData = try JSONEncoder().encode(["legacy.example.com": ["div", "#gdpr-modal"]])
+        testDefaults.set(legacyData, forKey: "stitch.testCache")
+        XCTAssertEqual(cache.selectors(for: "legacy.example.com"), ["#gdpr-modal"])
     }
 
     func testGeminiDetectClutterSelectorsCachesPerDomain() async throws {
@@ -185,7 +341,7 @@ final class StitchScreenshotTests: XCTestCase {
             let payload = """
             {
               "steps": [
-                { "type": "model_output", "content": "{\\"selectors\\": [\\"#cookie-wall\\"]}" }
+                { "type": "model_output", "content": "{\\"selectors\\": [\\"body\\", \\"#cookie-wall\\"]}" }
               ]
             }
             """
@@ -232,22 +388,22 @@ final class StitchScreenshotTests: XCTestCase {
         XCTAssertEqual(cache.cachedDomainCount, 1)
     }
 
-    func testGeminiDetectNextPageURLResolvesRelativeURL() async throws {
+    func testGeminiDetectNextPageURLResolvesRelativeURLAndValidatesConfidenceAndCandidateLinks() async throws {
+        var mockJSON = """
+        {
+          "outputs": [
+            { "text": "{\\"next_page_url\\": \\"/articles/swift?page=2\\", \\"confidence\\": 0.92}" }
+          ]
+        }
+        """
         let transport = MockHTTPTransport { request in
-            let payload = """
-            {
-              "outputs": [
-                { "text": "{\\"next_page_url\\": \\"/articles/swift?page=2\\", \\"confidence\\": 0.92}" }
-              ]
-            }
-            """
             let response = HTTPURLResponse(
                 url: request.url!,
                 statusCode: 200,
                 httpVersion: nil,
                 headerFields: nil
             )!
-            return (Data(payload.utf8), response)
+            return (Data(mockJSON.utf8), response)
         }
 
         let service = GeminiService(
@@ -267,6 +423,28 @@ final class StitchScreenshotTests: XCTestCase {
 
         let resolved = try await service.detectNextPageURL(pageContext: context)
         XCTAssertEqual(resolved?.absoluteString, "https://blog.example.com/articles/swift?page=2")
+
+        // Low confidence (< 0.45) must return nil.
+        mockJSON = """
+        {
+          "outputs": [
+            "{\\"next_page_url\\": \\"/articles/swift?page=2\\", \\"confidence\\": 0.30}"
+          ]
+        }
+        """
+        let lowConfidence = try await service.detectNextPageURL(pageContext: context)
+        XCTAssertNil(lowConfidence)
+
+        // Hallucinated URL not present in relNextURL or links must return nil.
+        mockJSON = """
+        {
+          "outputs": [
+            "{\\"next_page_url\\": \\"/articles/unrelated-page\\", \\"confidence\\": 0.95}"
+          ]
+        }
+        """
+        let unlistedURL = try await service.detectNextPageURL(pageContext: context)
+        XCTAssertNil(unlistedURL)
     }
 
     // MARK: - DeepLinkParser & PaginationHeuristic Tests
@@ -289,7 +467,7 @@ final class StitchScreenshotTests: XCTestCase {
         )
     }
 
-    func testPaginationHeuristicPrefersRelNextAndNextPageLinks() {
+    func testPaginationHeuristicPrefersRelNextAndHandlesWordBoundaryClasses() {
         let withRelNext = PageNavigationContext(
             url: "https://example.com/post?page=1",
             title: "Post",
@@ -303,19 +481,49 @@ final class StitchScreenshotTests: XCTestCase {
             "https://example.com/post?page=2"
         )
 
-        let withoutRelNext = PageNavigationContext(
-            url: "https://example.com/post?page=1",
-            title: "Post",
+        // Links with utility/component classes like `btn-desktop`, `border-top`, `preview-card-next`
+        // must NOT be falsely rejected by substring matches on `top` or `prev`, while `"Previous Page"` IS rejected.
+        let trickyClassesContext = PageNavigationContext(
+            url: "https://example.com/articles/architecture/p/1",
+            title: "Architecture Guide",
             relNextURL: nil,
             links: [
-                PageLinkCandidate(text: "Previous", href: "/post?page=0", rel: "", ariaLabel: "", className: "prev"),
-                PageLinkCandidate(text: "Jump", href: "#comments", rel: "", ariaLabel: "", className: ""),
-                PageLinkCandidate(text: "Next Page", href: "/post?page=2", rel: "", ariaLabel: "Next", className: "pagination-next")
+                PageLinkCandidate(
+                    text: "Previous Page",
+                    href: "/articles/architecture/p/0",
+                    rel: "",
+                    ariaLabel: "Previous Page",
+                    className: "btn-desktop pagination-prev"
+                ),
+                PageLinkCandidate(
+                    text: "Jump",
+                    href: "#comments",
+                    rel: "",
+                    ariaLabel: "",
+                    className: ""
+                ),
+                PageLinkCandidate(
+                    text: "Next",
+                    href: "/articles/architecture/p/2",
+                    rel: "",
+                    ariaLabel: "Next article page",
+                    className: "btn-desktop border-top preview-card-next autopager-link"
+                )
             ]
         )
         XCTAssertEqual(
-            PaginationHeuristic.findNextPageURL(in: withoutRelNext)?.absoluteString,
-            "https://example.com/post?page=2"
+            PaginationHeuristic.findNextPageURL(in: trickyClassesContext)?.absoluteString,
+            "https://example.com/articles/architecture/p/2"
+        )
+
+        // Verify `/p/2` and `-page-2` path number extraction.
+        XCTAssertEqual(
+            PaginationHeuristic.extractPageNumber(from: URL(string: "https://example.com/story/p/2")!),
+            2
+        )
+        XCTAssertEqual(
+            PaginationHeuristic.extractPageNumber(from: URL(string: "https://example.com/deep-dive-page-3.html")!),
+            3
         )
     }
 
@@ -341,9 +549,9 @@ final class StitchScreenshotTests: XCTestCase {
 
     // MARK: - Helpers
 
-    private func makeSolidImage(width: Int, height: Int, color: UIColor) -> UIImage {
+    private func makeSolidImage(width: Int, height: Int, scale: CGFloat = 1.0, color: UIColor) -> UIImage {
         let format = UIGraphicsImageRendererFormat()
-        format.scale = 1.0
+        format.scale = scale
         format.opaque = true
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: width, height: height), format: format)
         return renderer.image { ctx in
@@ -372,6 +580,14 @@ final class StitchScreenshotTests: XCTestCase {
         }
         context.draw(cgImage, in: CGRect(x: -x, y: -(cgImage.height - 1 - y), width: cgImage.width, height: cgImage.height))
         return (pixel[0], pixel[1], pixel[2], pixel[3])
+    }
+}
+
+private final class MutableClock: @unchecked Sendable {
+    var now: Date
+
+    init(_ now: Date) {
+        self.now = now
     }
 }
 

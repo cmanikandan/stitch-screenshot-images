@@ -1,5 +1,6 @@
 const btnCaptureFull = document.getElementById('btn-capture-full');
 const btnCaptureMulti = document.getElementById('btn-capture-multi');
+const btnCancelCapture = document.getElementById('btn-cancel-capture');
 const btnAppendPage = document.getElementById('btn-append-page');
 const btnStitchStaged = document.getElementById('btn-stitch-staged');
 const btnClearStaged = document.getElementById('btn-clear-staged');
@@ -55,7 +56,7 @@ function setStatus(text, tone = 'info') {
 }
 
 /**
- * Update busy/progress state across capture action buttons.
+ * Update busy/progress/cancel/error state across capture action controls.
  * @param {object} captureStatus
  */
 function renderCaptureStatus(captureStatus) {
@@ -63,6 +64,10 @@ function renderCaptureStatus(captureStatus) {
   btnCaptureFull.disabled = busy;
   btnCaptureMulti.disabled = busy;
   btnAppendPage.disabled = busy;
+  btnCancelCapture.hidden = !busy;
+  if (!busy) {
+    btnCancelCapture.disabled = false;
+  }
 
   if (busy) {
     captureProgress.hidden = false;
@@ -77,6 +82,9 @@ function renderCaptureStatus(captureStatus) {
     }
   } else {
     captureProgress.hidden = true;
+    if (captureStatus?.state === 'error' && captureStatus.message) {
+      setStatus(captureStatus.message, 'error');
+    }
   }
 }
 
@@ -93,11 +101,13 @@ function renderStagedCount(count, busy = false) {
 
 /**
  * Render preview thumbnail and metadata for the latest captured image.
+ * Works with lightweight metadata (thumbnailDataUrl) without requiring full dataUrl in GET_STATE.
  * @param {object | null} lastCapture
  */
 function renderPreview(lastCapture) {
   currentLastCapture = lastCapture || null;
-  if (!lastCapture?.dataUrl) {
+  const previewSrc = lastCapture?.thumbnailDataUrl || lastCapture?.dataUrl || '';
+  if (!lastCapture || (!previewSrc && !lastCapture.width)) {
     previewSection.hidden = true;
     previewImage.removeAttribute('src');
     previewMeta.textContent = '';
@@ -105,7 +115,9 @@ function renderPreview(lastCapture) {
   }
 
   previewSection.hidden = false;
-  previewImage.src = lastCapture.thumbnailDataUrl || lastCapture.dataUrl;
+  if (previewSrc) {
+    previewImage.src = previewSrc;
+  }
   const formatLabel = lastCapture.mimeType === 'image/jpeg' ? 'JPEG' : 'PNG';
   const pagesLabel =
     lastCapture.pagesCaptured > 1 ? ` · ${lastCapture.pagesCaptured} pages` : '';
@@ -126,23 +138,53 @@ function renderSettings(settings) {
 }
 
 /**
- * Synchronize aria-invalid and aria-describedby error ID with :user-invalid state.
+ * Synchronize aria-invalid and aria-describedby error ID with validity / :user-invalid state.
  * @param {HTMLInputElement} el
+ * @param {boolean} [forceShowInvalid]
  */
-function syncFieldAria(el) {
-  const invalid = el.matches(':user-invalid') || !el.validity.valid;
+function syncFieldAria(el, forceShowInvalid = false) {
+  const invalid = !el.validity.valid;
   const errorId = el.dataset.error;
-  const isUserInvalid = el.matches(':user-invalid');
+  const showInvalid = invalid && (forceShowInvalid || el.matches(':user-invalid'));
 
-  el.setAttribute('aria-invalid', isUserInvalid ? 'true' : 'false');
+  el.setAttribute('aria-invalid', showInvalid ? 'true' : 'false');
   if (errorId) {
     const ids = (el.getAttribute('aria-describedby') || '')
       .split(/\s+/)
       .filter((id) => id && id !== errorId);
-    if (isUserInvalid && invalid) ids.push(errorId);
+    if (showInvalid) ids.push(errorId);
     if (ids.length) el.setAttribute('aria-describedby', ids.join(' '));
     else el.removeAttribute('aria-describedby');
   }
+}
+
+/**
+ * Persist current form settings when valid.
+ * @param {boolean} [announce]
+ */
+async function persistSettingsFromControls(announce = false) {
+  if (!maxPagesInput.validity.valid) {
+    syncFieldAria(maxPagesInput, true);
+    return false;
+  }
+  syncFieldAria(maxPagesInput, false);
+
+  const format = fmtJpeg.checked ? 'jpeg' : 'png';
+  const autoCleanClutter = autoCleanCheckbox.checked;
+  const maxAutoPages = Number.parseInt(maxPagesInput.value, 10);
+  const apiKey = apiKeyInput.value.trim();
+
+  await sendCommand('UPDATE_SETTINGS', {
+    format,
+    autoCleanClutter,
+    maxAutoPages,
+    apiKey
+  });
+
+  if (announce) {
+    setStatus('Settings saved.', 'success');
+  }
+  return true;
 }
 
 /**
@@ -156,8 +198,8 @@ async function dataUrlToPngBlob(dataUrl) {
   if (blob.type === 'image/png') return blob;
 
   const bitmap = await createImageBitmap(blob);
+  const canvas = document.createElement('canvas');
   try {
-    const canvas = document.createElement('canvas');
     canvas.width = bitmap.width;
     canvas.height = bitmap.height;
     const ctx = canvas.getContext('2d');
@@ -170,6 +212,8 @@ async function dataUrlToPngBlob(dataUrl) {
     });
   } finally {
     bitmap.close();
+    canvas.width = 0;
+    canvas.height = 0;
   }
 }
 
@@ -181,6 +225,14 @@ async function refreshState() {
   renderPreview(state.lastCapture);
 }
 
+async function safeRefreshState() {
+  try {
+    await refreshState();
+  } catch {
+    // Ignore transient refresh failures
+  }
+}
+
 btnCaptureFull.addEventListener('click', async () => {
   try {
     renderCaptureStatus({ state: 'capturing', message: 'Capturing full page…' });
@@ -190,7 +242,7 @@ btnCaptureFull.addEventListener('click', async () => {
   } catch (err) {
     setStatus(err.message, 'error');
   } finally {
-    await refreshState().catch(() => {});
+    await safeRefreshState();
   }
 });
 
@@ -206,7 +258,18 @@ btnCaptureMulti.addEventListener('click', async () => {
   } catch (err) {
     setStatus(err.message, 'error');
   } finally {
-    await refreshState().catch(() => {});
+    await safeRefreshState();
+  }
+});
+
+btnCancelCapture.addEventListener('click', async () => {
+  btnCancelCapture.disabled = true;
+  try {
+    await sendCommand('CANCEL_CAPTURE');
+    setStatus('Cancelling capture…', 'info');
+  } catch (err) {
+    btnCancelCapture.disabled = false;
+    setStatus(err.message, 'error');
   }
 });
 
@@ -215,11 +278,14 @@ btnAppendPage.addEventListener('click', async () => {
     renderCaptureStatus({ state: 'capturing', message: 'Appending current page…' });
     const result = await sendCommand('APPEND_CURRENT_PAGE');
     renderStagedCount(result.stagedCount, false);
-    setStatus(`Added page (${result.stagedCount} staged). Navigate to next page or Stitch & Save.`, 'success');
+    setStatus(
+      `Added page (${result.stagedCount} staged). Navigate to next page or Stitch & Save.`,
+      'success'
+    );
   } catch (err) {
     setStatus(err.message, 'error');
   } finally {
-    await refreshState().catch(() => {});
+    await safeRefreshState();
   }
 });
 
@@ -228,11 +294,14 @@ btnStitchStaged.addEventListener('click', async () => {
     renderCaptureStatus({ state: 'capturing', message: 'Stitching staged pages…' });
     const capture = await sendCommand('STITCH_STAGED_PAGES');
     renderPreview(capture);
-    setStatus(`Stitched staged pages into ${capture.width}×${capture.height} image.`, 'success');
+    setStatus(
+      `Stitched ${capture.pagesCaptured || 1} staged page(s) into ${capture.width}×${capture.height} image.`,
+      'success'
+    );
   } catch (err) {
     setStatus(err.message, 'error');
   } finally {
-    await refreshState().catch(() => {});
+    await safeRefreshState();
   }
 });
 
@@ -256,10 +325,24 @@ btnDownload.addEventListener('click', async () => {
 });
 
 btnCopy.addEventListener('click', async () => {
-  if (!currentLastCapture?.dataUrl) return;
+  if (!currentLastCapture) return;
   try {
-    const pngBlob = await dataUrlToPngBlob(currentLastCapture.dataUrl);
-    await navigator.clipboard.write([new ClipboardItem({ 'image/png': pngBlob })]);
+    // Pass Promise<Blob> synchronously into ClipboardItem so transient user activation never expires
+    const pngBlobPromise = (async () => {
+      let dataUrl = currentLastCapture?.dataUrl;
+      if (!dataUrl) {
+        const fullCapture = await sendCommand('GET_LAST_CAPTURE_DATA_URL');
+        dataUrl = fullCapture?.dataUrl;
+      }
+      if (!dataUrl) {
+        throw new Error('No captured image available to copy.');
+      }
+      return await dataUrlToPngBlob(dataUrl);
+    })();
+
+    await navigator.clipboard.write([
+      new ClipboardItem({ 'image/png': pngBlobPromise })
+    ]);
     setStatus('Image copied to clipboard.', 'success');
   } catch (err) {
     setStatus(`Clipboard copy failed: ${err.message}`, 'error');
@@ -277,28 +360,28 @@ btnToggleApiKey.addEventListener('click', () => {
 maxPagesInput.addEventListener('blur', () => syncFieldAria(maxPagesInput));
 maxPagesInput.addEventListener('input', () => syncFieldAria(maxPagesInput));
 
+// Auto-save toggle and numeric settings on change
+for (const toggleControl of [fmtPng, fmtJpeg, autoCleanCheckbox, maxPagesInput]) {
+  toggleControl.addEventListener('change', async () => {
+    try {
+      await persistSettingsFromControls(false);
+    } catch (err) {
+      setStatus(err.message, 'error');
+    }
+  });
+}
+
 settingsForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   if (!settingsForm.checkValidity()) {
-    syncFieldAria(maxPagesInput);
+    syncFieldAria(maxPagesInput, true);
     maxPagesInput.focus();
     setStatus('Please fix invalid settings before saving.', 'error');
     return;
   }
 
   try {
-    const format = fmtJpeg.checked ? 'jpeg' : 'png';
-    const autoCleanClutter = autoCleanCheckbox.checked;
-    const maxAutoPages = Number.parseInt(maxPagesInput.value, 10);
-    const apiKey = apiKeyInput.value.trim();
-
-    await sendCommand('UPDATE_SETTINGS', {
-      format,
-      autoCleanClutter,
-      maxAutoPages,
-      apiKey
-    });
-    setStatus('Settings saved.', 'success');
+    await persistSettingsFromControls(true);
   } catch (err) {
     setStatus(err.message, 'error');
   }
@@ -313,18 +396,16 @@ btnClearCache.addEventListener('click', async () => {
   }
 });
 
-chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName === 'session' && changes.captureStatus) {
+chrome.storage.session.onChanged.addListener((changes) => {
+  if (changes.captureStatus) {
     renderCaptureStatus(changes.captureStatus.newValue);
   }
-  if (areaName === 'local' && changes.stagedPages) {
-    const count = Array.isArray(changes.stagedPages.newValue)
-      ? changes.stagedPages.newValue.length
-      : 0;
+  if (changes.stagedCount) {
+    const count = Number(changes.stagedCount.newValue) || 0;
     renderStagedCount(count, !captureProgress.hidden);
   }
-  if (areaName === 'local' && changes.lastCapture) {
-    renderPreview(changes.lastCapture.newValue);
+  if (changes.lastCaptureMeta) {
+    renderPreview(changes.lastCaptureMeta.newValue);
   }
 });
 

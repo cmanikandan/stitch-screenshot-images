@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 
 /// Settings sheet for optional Gemini Keychain API key, export format, decluttering, and cache management.

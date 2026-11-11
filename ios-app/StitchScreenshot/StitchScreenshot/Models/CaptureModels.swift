@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 import UIKit
 
 /// Supported pure-image export formats.

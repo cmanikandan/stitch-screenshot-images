@@ -38,8 +38,8 @@ flowchart LR
 ### How Gemini Improves Image Capture (Optional)
 Both clients work deterministically offline using native browser/iOS rendering and heuristic cleanup. When you supply a Gemini API key in Settings, both clients call `gemini-3.8-flash` via the Gemini **Interactions API** (`POST https://generativelanguage.googleapis.com/v1beta/interactions` with `Api-Revision: 2026-05-20` and structured `response_format`) for two focused pre-capture tasks:
 
-1. **Pre-Capture Decluttering (`detectClutterSelectors` / `detectClutterSelectors(for:)`):** Inspects a compact DOM summary of `position: fixed` / `sticky` elements, overlays, cookie banners, modals, and ad wrappers, returning safe CSS selectors to temporarily hide before capturing (restored immediately afterward). Discovered selectors are cached per domain (`chrome.storage.local` on Chrome; `UserDefaults` via `DomainSelectorCache` on iOS).
-2. **Smart Pagination Detection (`detectNextPageUrl` / `detectNextPageURL(for:)`):** Evaluates candidate links (`<a>` / `<link rel="next">`) on paginated articles to locate the true continuation URL without accidentally following "Related" or "Next Article" links.
+1. **Pre-Capture Decluttering (`detectClutterSelectors` / `detectClutterSelectors(domSummary:)`):** Inspects a compact DOM summary of `position: fixed` / `sticky` overlays, cookie banners, modals, inline/in-between article ads, and sponsored widgets, returning sanitized CSS selectors to temporarily collapse before capturing (restored byte-for-byte immediately afterward). Discovered selectors are cached per domain (`chrome.storage.local` on Chrome; `UserDefaults` via `DomainSelectorCache` on iOS).
+2. **Smart Pagination Detection (`detectNextPageUrl` / `detectNextPageURL(pageContext:)`):** Evaluates candidate links (`<a>` / `<link rel="next">`) on paginated articles to locate the true continuation URL without accidentally following "Related" or "Next Article" links.
 
 > **Pixel Fidelity:** Actual page pixels are always rendered natively by Chromium (`chrome.tabs.captureVisibleTab` + Offscreen Canvas) and WebKit (`WKWebView.takeSnapshot(with:)` + CoreGraphics). Gemini never alters or regenerates page text or pixels.
 
@@ -58,10 +58,10 @@ Both clients work deterministically offline using native browser/iOS rendering a
 │   ├── background/
 │   │   └── service-worker.js           # Stateless MV3 capture & download coordinator
 │   ├── content/
-│   │   └── page-inspector.js           # rAF-batched DOM inspection, scroll & fixed-bar hiding
+│   │   └── page-inspector.js           # Time-sliced DOM inspection, ad/wrapper collapse & fixed-bar hiding
 │   ├── offscreen/
 │   │   ├── offscreen.html
-│   │   └── offscreen.js                # Canvas viewport & multi-page vertical stitcher
+│   │   └── offscreen.js                # Streaming canvas stitcher & Blob URL lifecycle helper
 │   ├── popup/
 │   │   ├── popup.html                  # Semantic, accessible popup UI
 │   │   ├── popup.css
@@ -76,10 +76,13 @@ Both clients work deterministically offline using native browser/iOS rendering a
 │   │   ├── icon-48.png
 │   │   └── icon-128.png
 │   └── tests/
-│       └── extension.test.js           # 13 unit & MV3/CSP compliance tests
+│       └── extension.test.js           # 17 unit & MV3/CSP compliance tests
 └── ios-app/
     └── StitchScreenshot/
         ├── StitchScreenshot.xcodeproj/
+        │   ├── project.pbxproj
+        │   └── xcshareddata/xcschemes/
+        │       └── StitchScreenshot.xcscheme
         ├── StitchScreenshot/
         │   ├── StitchScreenshotApp.swift   # App entry + deep-link URL handler
         │   ├── ContentView.swift           # In-app WKWebView browser, staged tray & capture bar
@@ -91,16 +94,18 @@ Both clients work deterministically offline using native browser/iOS rendering a
         │   │   ├── ImageStitcher.swift     # CoreGraphics vertical stitcher, overlap crop & encoder
         │   │   ├── KeychainService.swift   # Secure Keychain storage for Gemini API key
         │   │   ├── PhotoLibraryService.swift
-        │   │   └── WebCaptureService.swift # WKWebView snapshot capture, clutter hiding & auto-stitch
+        │   │   └── WebCaptureService.swift # WKWebView snapshot capture, ad/clutter collapse & auto-stitch
         │   └── Views/
         │       ├── PreviewSheet.swift      # Zoomable image preview, Photos save, Copy & Share Sheet
         │       ├── SettingsView.swift      # Keychain API key & capture settings
         │       └── WebViewContainer.swift
         ├── StitchShareExtension/
+        │   ├── Base.lproj/
+        │   │   └── MainInterface.storyboard
         │   ├── Info.plist                  # Web URL & text share activation rules
         │   └── ShareViewController.swift   # Extracts shared URL and opens host app
         ├── StitchScreenshotTests/
-        │   └── StitchScreenshotTests.swift # 14 Swift unit tests
+        │   └── StitchScreenshotTests.swift # 17 Swift unit tests
         └── StitchScreenshotUITests/
             └── StitchScreenshotUITests.swift
 ```
@@ -110,12 +115,12 @@ Both clients work deterministically offline using native browser/iOS rendering a
 ## 1. Chrome Extension (`chrome-extension/`)
 
 ### Capabilities
-- **Capture Full Page:** Scrolls through the active tab (`560ms` pacing to respect Chrome's `captureVisibleTab` quota), suppresses sticky/fixed bars after the first viewport slice, crops bottom overlap at device pixel ratio, and stitches viewports inside an offscreen document (`chrome.offscreen`).
-- **Append & Stitch (Manual Multi-Page):** Stage captures across multiple pages in `chrome.storage.local`, navigate manually, and stitch all staged pages into one vertical image.
-- **Auto-Capture Multi-Page:** Walks paginated articles up to a configurable page limit (`2–15` pages) using Gemini or `rel="next"`/pagination heuristics, preventing duplicate URL loops.
-- **Pre-Capture Cleanup:** Temporarily injects `<style data-stitch-cleanup>` for heuristic cookie/chat/overlay selectors plus cached Gemini domain selectors, always restoring the page in `try/finally`.
-- **Image-Only Export:** Preview thumbnail in popup, **Copy Image** (`ClipboardItem` PNG), or **Download Image** (`chrome.downloads.download` in PNG or JPEG).
-- **Canvas Safety:** `computeSafeCanvasScale` automatically scales oversized dimensions to stay within `16384×16384` / `268M` px browser canvas limits.
+- **Capture Full Page:** Dynamically scrolls through the active tab (`560ms` pacing + quota retry backoff for `captureVisibleTab`), suppresses bottom bars before slice 0 and sticky/fixed bars on subsequent slices, promotes lazy images to eager decode, crops sub-pixel DPR overlaps seamlessly, and streams slices to an offscreen document (`chrome.offscreen`) with live cancellation support.
+- **Append & Stitch (Manual Multi-Page):** Stage captures across multiple pages using per-page `chrome.storage.local` keys, navigate manually, and stream staged pages into one vertical image.
+- **Auto-Capture Multi-Page:** Walks paginated articles up to a configurable page limit (`2–15` pages) using Gemini or `rel="next"`/pagination heuristics, preventing duplicate or redirect URL loops.
+- **Inline Ad, Wrapper & Overlay Cleanup:** Temporarily collapses in-article ads (AdSense/GPT, Taboola, Outbrain, publisher ad slots), `"Advertisement"`/`"Sponsored"` placeholder boxes, and empty CLS `min-height` reserve wrappers while protecting article prose, headings, and legitimate embeds—restoring original inline styles byte-for-byte in `try/finally`.
+- **Image-Only Export:** Preview thumbnail in popup, **Copy Image** (`ClipboardItem` PNG), or **Download Image** (`chrome.downloads.download` backed by offscreen `Blob` URLs for large PNG/JPEG exports).
+- **Canvas Safety:** `computeSafeCanvasScale` automatically scales oversized dimensions to stay within `16384×16384` / `268M` px browser canvas limits without rounding seams.
 
 ### Installation (Developer Mode)
 1. Open `chrome://extensions` in Google Chrome.
@@ -133,10 +138,11 @@ npm test
 ```
 
 The test suite (`node --test tests/*.test.js`) verifies:
-- Scroll offset calculation, DPR bottom-slice overlap cropping, and safe multi-page downscaling (`stitch-math.js`)
-- Pagination candidate scoring and CSS selector sanitization
-- Gemini Interactions API headers (`x-goog-api-key`, `Api-Revision`), model (`gemini-3.8-flash`), JSON schema payload, `steps` / `outputs` parsing, and 7-day domain cache TTL (`gemini-client.js`)
-- `manifest.json` MV3 validity, real PNG icon IHDR dimensions (`16×16`, `48×48`, `128×128`), zero inline `<script>` / event handlers / `style` attributes in HTML, and `node --check` syntax across all JS files.
+- Scroll offset calculation, fractional-DPR bottom-slice overlap cropping, and seam-free multi-page downscaling (`stitch-math.js`)
+- Pagination candidate scoring and CSS selector sanitization/cache filtering
+- Gemini Interactions API headers (`x-goog-api-key`, `Api-Revision`), model (`gemini-3.8-flash`), JSON schema payload, `steps` / `outputs` parsing, bounded request timeouts, candidate URL validation, and 7-day domain cache TTL (`gemini-client.js`)
+- Mock-DOM execution of `page-inspector.js` verifying inline ad + CLS `min-height` wrapper collapse, Slice-0 bottom-bar hiding, protected article/YouTube embed preservation, and byte-exact style restoration
+- `manifest.json` MV3 validity, real PNG icon IHDR dimensions (`16×16`, `48×48`, `128×128`), offscreen `Blob` URL lifecycle & API boundary enforcement, zero inline `<script>` / event handlers / `style` attributes in HTML, and `node --check` syntax across all JS files.
 
 ---
 
@@ -146,11 +152,11 @@ The test suite (`node --test tests/*.test.js`) verifies:
 - **In-App `WKWebView` Browser:** Address bar, Back/Forward/Reload/Stop controls, quick links, and clipboard URL paste-and-open.
 - **Share Extension (`StitchShareExtension`):** Tap **Share** in Safari, Chrome, or other iOS apps to hand off a webpage URL directly to `StitchScreenshot` via `stitchscreenshot://capture?url=<encoded>`.
 - **Full-Page & Multi-Page Stitching:**
-  - Scroll-and-stitch via `WKWebView.takeSnapshot(with:)` with sticky-element suppression after slice 0 and `cropTopAndBottomOverlap`.
+  - Scroll-and-stitch via `WKWebView.takeSnapshot(with:)` with inline ad & CLS reserve-wrapper collapse, bottom-bar & sticky-header suppression, seam-safe lazy ad cleanup, `cropTopAndBottomOverlap`, and responsive task cancellation.
   - Manual **Append** tray with thumbnail reordering and deletion before **Stitch**.
   - **Auto Stitch** for paginated articles using `GeminiService` or `PaginationHeuristic`.
-  - `ImageStitcher` aligns mismatched widths proportionally and caps output safely (`3600px` max width, `24000px` max height by default) to stay within iOS memory budgets.
-- **Image-Only Export & Sharing:** Zoomable preview in `PreviewSheet`, **PNG / JPEG** format toggle, **Save to Photos** (`PHPhotoLibrary` `.addOnly`), **Copy Image** (`UIPasteboard.general`), and native `UIActivityViewController` Share Sheet sharing only the rendered image.
+  - `ImageStitcher` aligns mismatched widths proportionally without cumulative rounding drift and caps output safely (`3600px` max width, `24000px` max height by default) to stay within iOS memory budgets.
+- **Image-Only Export & Sharing:** Smooth 60fps zoomable preview in `PreviewSheet` (async byte-size calculation), **PNG / JPEG** format toggle, **Save to Photos** (`PHPhotoLibrary` `.addOnly`), **Copy Image** (`UIPasteboard.general`), and native `UIActivityViewController` Share Sheet sharing only the rendered image.
 - **Secure Keychain Storage:** Optional Gemini API key stored via `KeychainService` (`Security` framework) inside **Settings**.
 
 ### Running in Xcode
@@ -165,6 +171,11 @@ xcodebuild test \
   -scheme StitchScreenshot \
   -destination 'platform=iOS Simulator,name=iPhone 18 Pro'
 ```
+
+The iOS test targets verify:
+- `@3x` Retina stitching, 35-slice downscale cumulative-rounding accuracy, mismatched-width scaling, overlap cropping, PNG/JPEG encoding headers, and stale temp file pruning (`ImageStitcher`)
+- Gemini Interactions API `response_format` schema envelope, `"thought"` step filtering, plain-string/keyed `outputs` decoding, `CSSSelectorSanitizer`, 7-day `DomainSelectorCache` TTL, and candidate-validated next-page URL resolution (`GeminiService`)
+- `DeepLinkParser` round-trips, word-boundary `PaginationHeuristic` scoring, `KeychainService` lifecycle, and `StitchScreenshotUITests` launch/controls smoke checks.
 
 ---
 
