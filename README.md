@@ -179,6 +179,33 @@ The iOS test targets verify:
 
 ---
 
+## Packaging & Deployment
+
+### 1. Chrome Web Store Deployment
+1. Generate the distribution bundle:
+   ```sh
+   cd chrome-extension
+   npm run package
+   ```
+   This creates a verified production archive at `dist/pagestitch-chrome-extension-v<version>.zip` containing strictly the runtime assets (excluding tests and development scripts).
+2. Go to the [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole).
+3. Click **Add new item** (or select existing item) and upload the zip file from `dist/`.
+4. Fill in the store listing metadata, screenshots, and privacy practices, then submit for review.
+
+### 2. iOS App Store / TestFlight Deployment
+1. Open `ios-app/StitchScreenshot/StitchScreenshot.xcodeproj` in Xcode.
+2. Under **Signing & Capabilities**, select your Apple Developer Team and ensure provisioning profiles are assigned for both `StitchScreenshot` and `StitchShareExtension`.
+3. Select **Any iOS Device (arm64)** as the target.
+4. Choose **Product > Archive**.
+5. Once the Organizer opens, click **Distribute App** to upload the build to **TestFlight** / **App Store Connect**.
+
+### 3. Continuous Integration & Artifacts
+The repository includes a GitHub Actions workflow (`.github/workflows/deploy.yml`) that automatically:
+- Runs the Chrome extension test suite and packages the extension into a downloadable release artifact on every push.
+- Runs the iOS test suite and builds the generic iOS release scheme on macOS runners.
+
+---
+
 ## Troubleshooting & Caveats
 - **Restricted Chrome pages:** Chrome blocks extensions from capturing `chrome://`, `chrome-extension://`, and Chrome Web Store URLs.
 - **Infinite scroll / dynamic SPAs:** Very long infinite-scroll feeds are clamped safely (`60,000px` CSS height on Chrome; `24,000px` output height cap on iOS) to prevent tab or app OOM crashes.

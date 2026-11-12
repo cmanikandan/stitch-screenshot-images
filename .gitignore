@@ -10,6 +10,8 @@ DerivedData/
 
 # Node / Chrome extension artifacts
 chrome-extension/node_modules/
+dist/
+*.zip
 *.log
 
 # Local secrets / env
