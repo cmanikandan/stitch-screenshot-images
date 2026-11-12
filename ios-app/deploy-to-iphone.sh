@@ -6,12 +6,16 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 PROJECT_PATH="$REPO_ROOT/ios-app/StitchScreenshot/StitchScreenshot.xcodeproj"
 SCHEME="StitchScreenshot"
-DERIVED_DATA="$REPO_ROOT/DerivedData"
+DERIVED_DATA="/tmp/PageStitchDerivedData"
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
   echo "Error: iOS device deployment requires macOS with Xcode installed."
   exit 1
 fi
+
+echo "==> Cleaning macOS extended attributes (Finder/iCloud detritus) from project..."
+xattr -cr "$REPO_ROOT/ios-app" 2>/dev/null || true
+rm -rf "$REPO_ROOT/DerivedData" "$DERIVED_DATA" 2>/dev/null || true
 
 echo "==> Detecting connected iOS devices..."
 DEVICE_JSON="/tmp/pagestitch_devices_$$.json"
@@ -81,20 +85,14 @@ if [[ -n "$TEAM_ID" ]]; then
   TEAM_ARGS=("DEVELOPMENT_TEAM=$TEAM_ID")
 fi
 
-# Customize bundle ID suffix if needed to avoid conflicts on personal teams
-BUNDLE_PREFIX="${BUNDLE_ID_PREFIX:-}"
-BUNDLE_ARGS=()
-if [[ -n "$BUNDLE_PREFIX" ]]; then
-  echo "==> Using custom Bundle ID prefix: $BUNDLE_PREFIX"
-fi
-
 echo "==> Building $SCHEME for $DEVICE_NAME..."
-xcodebuild \
+COPYFILE_DISABLE=1 xcodebuild \
   -project "$PROJECT_PATH" \
   -scheme "$SCHEME" \
   -destination "platform=iOS,id=$DEVICE_UDID" \
   -derivedDataPath "$DERIVED_DATA" \
   -allowProvisioningUpdates \
+  OTHER_CODE_SIGN_FLAGS="--deep" \
   "${TEAM_ARGS[@]}" \
   build
 
