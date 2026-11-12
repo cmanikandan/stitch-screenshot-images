@@ -542,7 +542,7 @@ final class WebCaptureService {
                     }
 
                     try? await Task.sleep(for: .seconds(13))
-                    guard !Task.isCancelled, let self, self.navigationToken == token else { return }
+                    guard !Task.isCancelled, self.navigationToken == token else { return }
                     self.webView.stopLoading()
                     self.syncWebViewState()
                     self.finishPendingNavigation(token: token, with: .failure(WebCaptureError.navigationTimeout))
@@ -1539,9 +1539,9 @@ private final class WebViewDelegateProxy: NSObject, WKNavigationDelegate, WKUIDe
     init(owner: WebCaptureService) {
         self.owner = owner
         super.init()
-        progressObservation = owner.webView.observe(\.estimatedProgress, options: [.new]) { [weak owner] _, _ in
-            Task { @MainActor in
-                owner?.syncWebViewState()
+        progressObservation = owner.webView.observe(\.estimatedProgress, options: [.new]) { [weak self] _, _ in
+            Task { @MainActor [weak self] in
+                self?.owner?.syncWebViewState()
             }
         }
     }
