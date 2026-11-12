@@ -128,6 +128,66 @@ final class StitchScreenshotTests: XCTestCase {
         XCTAssertNil(ImageStitcher.cropTopAndBottomOverlap(image, topCropPixels: 250))
     }
 
+    func testStitchScreenshotsWithAutoOverlapStripsStickyChromeAndOverlap() throws {
+        // Simulate two 200x400 native app screenshots with:
+        // - Top 40px sticky status/nav bar
+        // - Bottom 32px sticky tab bar
+        // - 328px scrollable viewport where Screenshot 2 scrolled down by 200px (128px overlap)
+        let fullArticleHeight = 600
+        let width = 200
+        let screenHeight = 400
+        let topBarHeight = 40
+        let bottomBarHeight = 32
+        let viewportHeight = screenHeight - topBarHeight - bottomBarHeight // 328
+
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1.0
+        format.opaque = true
+
+        // Render synthetic full article with distinct horizontal textured bands every 16px
+        let articleImage = UIGraphicsImageRenderer(size: CGSize(width: width, height: fullArticleHeight), format: format).image { ctx in
+            UIColor.white.setFill()
+            ctx.fill(CGRect(x: 0, y: 0, width: width, height: fullArticleHeight))
+            for rowBand in 0..<(fullArticleHeight / 16) {
+                for colBand in 0..<(width / 20) {
+                    let r = CGFloat((rowBand * 37 + colBand * 53) % 220) / 255.0
+                    let g = CGFloat((rowBand * 71 + colBand * 29) % 220) / 255.0
+                    let b = CGFloat((rowBand * 19 + colBand * 97) % 220) / 255.0
+                    UIColor(red: r, green: g, blue: b, alpha: 1.0).setFill()
+                    ctx.fill(CGRect(x: colBand * 20 + 2, y: rowBand * 16 + 2, width: 16, height: 12))
+                }
+            }
+        }
+
+        func makeAppScreenshot(scrollOffsetY: Int) -> UIImage {
+            UIGraphicsImageRenderer(size: CGSize(width: width, height: screenHeight), format: format).image { ctx in
+                // Draw scrolled article slice in middle viewport
+                if let cg = articleImage.cgImage?.cropping(to: CGRect(x: 0, y: scrollOffsetY, width: width, height: viewportHeight)) {
+                    UIImage(cgImage: cg).draw(in: CGRect(x: 0, y: topBarHeight, width: width, height: viewportHeight))
+                }
+                // Draw static top bar
+                UIColor(red: 0.1, green: 0.1, blue: 0.15, alpha: 1.0).setFill()
+                ctx.fill(CGRect(x: 0, y: 0, width: width, height: topBarHeight))
+                // Draw static bottom bar
+                UIColor(red: 0.15, green: 0.15, blue: 0.2, alpha: 1.0).setFill()
+                ctx.fill(CGRect(x: 0, y: screenHeight - bottomBarHeight, width: width, height: bottomBarHeight))
+            }
+        }
+
+        let shot1 = makeAppScreenshot(scrollOffsetY: 0)
+        let shot2 = makeAppScreenshot(scrollOffsetY: 200)
+
+        let overlap = try XCTUnwrap(ImageStitcher.detectVerticalOverlap(topImage: shot1, bottomImage: shot2))
+        XCTAssertEqual(overlap.bottomTrimOnTopImage, bottomBarHeight, accuracy: 4)
+        XCTAssertEqual(overlap.topCropOnBottomImage, topBarHeight + (viewportHeight - 200), accuracy: 6)
+
+        let stitched = try ImageStitcher.stitchScreenshotsWithAutoOverlap([shot1, shot2], detectOverlap: true)
+        let stitchedDims = ImageStitcher.pixelSize(of: stitched)
+        // Expected height: shot1 (400 - 32 bottom bar = 368) + shot2 unique tail (200 + 32 bottom bar = 232) = 600
+        XCTAssertEqual(stitchedDims.width, width)
+        XCTAssertEqual(stitchedDims.height, 600, accuracy: 8)
+    }
+
     func testEncodePNGAndJPEGHeadersAndPrunesStaleTempFiles() throws {
         let image = makeSolidImage(width: 32, height: 32, color: .orange)
 

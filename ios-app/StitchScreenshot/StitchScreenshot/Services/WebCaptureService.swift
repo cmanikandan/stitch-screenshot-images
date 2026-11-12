@@ -150,13 +150,41 @@ final class WebCaptureService {
         stagedPages.removeAll()
     }
 
-    func stitchStagedPages() throws -> CapturedImageResult {
+    func stageImportedScreenshots(_ images: [UIImage]) {
+        for (idx, image) in images.enumerated() {
+            let num = stagedPages.count + idx + 1
+            stagedPages.append(
+                StagedPage(
+                    url: nil,
+                    title: "Screenshot \(num)",
+                    image: image
+                )
+            )
+        }
+    }
+
+    func stitchStagedPages(detectOverlap: Bool = true) throws -> CapturedImageResult {
         let images = stagedPages.map(\.image)
-        let stitched = try ImageStitcher.stitchVertically(images)
+        let stitched = try ImageStitcher.stitchScreenshotsWithAutoOverlap(
+            images,
+            detectOverlap: detectOverlap
+        )
         return CapturedImageResult(
             image: stitched,
             pageCount: stagedPages.count,
             sourceURL: stagedPages.first?.url ?? currentURL
+        )
+    }
+
+    func stitchImportedScreenshots(_ images: [UIImage], detectOverlap: Bool = true) throws -> CapturedImageResult {
+        let stitched = try ImageStitcher.stitchScreenshotsWithAutoOverlap(
+            images,
+            detectOverlap: detectOverlap
+        )
+        return CapturedImageResult(
+            image: stitched,
+            pageCount: images.count,
+            sourceURL: nil
         )
     }
 

@@ -1,4 +1,5 @@
 import Foundation
+import PhotosUI
 import SwiftUI
 import UIKit
 
@@ -9,6 +10,8 @@ struct ContentView: View {
     @State private var addressInput: String = ""
     @State private var showSettings = false
     @State private var previewResult: CapturedImageResult?
+    @State private var selectedPhotoItems: [PhotosPickerItem] = []
+    @State private var isStitchingPhotos = false
     @FocusState private var isAddressFieldFocused: Bool
 
     private let quickLinks: [(label: String, url: String)] = [
@@ -34,7 +37,7 @@ struct ContentView: View {
                     emptyBrowserLanding
                 }
 
-                if captureService.isCapturing {
+                if captureService.isCapturing || isStitchingPhotos {
                     captureProgressOverlay
                 }
             }
@@ -49,6 +52,10 @@ struct ContentView: View {
             if !isAddressFieldFocused {
                 addressInput = newValue
             }
+        }
+        .onChange(of: selectedPhotoItems) { _, newItems in
+            guard !newItems.isEmpty else { return }
+            handleSelectedPhotos(newItems)
         }
         .sheet(isPresented: $showSettings) {
             SettingsView(settings: settings)
@@ -151,7 +158,7 @@ struct ContentView: View {
     private var emptyBrowserLanding: some View {
         ScrollView {
             VStack(spacing: 20) {
-                Spacer(minLength: 36)
+                Spacer(minLength: 28)
 
                 Image(systemName: "camera.viewfinder")
                     .font(.system(size: 52))
@@ -160,22 +167,39 @@ struct ContentView: View {
                 VStack(spacing: 8) {
                     Text("StitchScreenshot")
                         .font(.title2.bold())
-                    Text("Browse any webpage, hide sticky clutter, and capture full-page or multi-page articles as a single pure PNG or JPEG image.")
+                    Text("Capture full webpages or stitch screenshots from any native app (NYTimes, WSJ, chats) into a single pure PNG or JPEG image.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 24)
                 }
 
-                Button {
-                    pasteAndOpenFromClipboard()
-                } label: {
-                    Label("Paste URL & Open", systemImage: "doc.on.clipboard")
-                        .font(.subheadline.weight(.semibold))
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
+                VStack(spacing: 12) {
+                    PhotosPicker(
+                        selection: $selectedPhotoItems,
+                        maxSelectionCount: 25,
+                        selectionBehavior: .ordered,
+                        matching: .images
+                    ) {
+                        Label("Stitch Screenshots from Photos", systemImage: "photo.on.rectangle.angled")
+                            .font(.subheadline.weight(.semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(captureService.isCapturing || isStitchingPhotos)
+
+                    Button {
+                        pasteAndOpenFromClipboard()
+                    } label: {
+                        Label("Paste Webpage URL & Open", systemImage: "doc.on.clipboard")
+                            .font(.subheadline.weight(.semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                    }
+                    .buttonStyle(.bordered)
                 }
-                .buttonStyle(.borderedProminent)
+                .padding(.horizontal, 24)
 
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Quick Test Pages")
@@ -335,7 +359,7 @@ struct ContentView: View {
                         .padding(.vertical, 10)
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(!captureService.hasCommittedPage || captureService.isCapturing)
+                .disabled(!captureService.hasCommittedPage || captureService.isCapturing || isStitchingPhotos)
 
                 Button {
                     runAutoMultiPageCapture()
@@ -346,7 +370,7 @@ struct ContentView: View {
                         .padding(.vertical, 10)
                 }
                 .buttonStyle(.bordered)
-                .disabled(!captureService.hasCommittedPage || captureService.isCapturing)
+                .disabled(!captureService.hasCommittedPage || captureService.isCapturing || isStitchingPhotos)
 
                 Button {
                     runCaptureAndAppend()
@@ -357,7 +381,22 @@ struct ContentView: View {
                         .padding(.vertical, 10)
                 }
                 .buttonStyle(.bordered)
-                .disabled(!captureService.hasCommittedPage || captureService.isCapturing)
+                .disabled(!captureService.hasCommittedPage || captureService.isCapturing || isStitchingPhotos)
+
+                PhotosPicker(
+                    selection: $selectedPhotoItems,
+                    maxSelectionCount: 25,
+                    selectionBehavior: .ordered,
+                    matching: .images
+                ) {
+                    Label("Photos", systemImage: "photo.on.rectangle.angled")
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 10)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityLabel("Stitch from Photos")
+                .disabled(captureService.isCapturing || isStitchingPhotos)
 
                 if !captureService.stagedPages.isEmpty {
                     Button {
@@ -370,7 +409,7 @@ struct ContentView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(.green)
-                    .disabled(captureService.isCapturing)
+                    .disabled(captureService.isCapturing || isStitchingPhotos)
                 }
             }
             .padding(.horizontal, 10)
@@ -393,6 +432,37 @@ struct ContentView: View {
             captureService.load(url: url)
         } else {
             captureService.errorMessage = "No valid http/https URL found in clipboard."
+        }
+    }
+
+    private func handleSelectedPhotos(_ items: [PhotosPickerItem]) {
+        selectedPhotoItems = []
+        isStitchingPhotos = true
+        Task {
+            defer { isStitchingPhotos = false }
+            var loadedImages: [UIImage] = []
+            loadedImages.reserveCapacity(items.count)
+
+            for item in items {
+                if let data = try? await item.loadTransferable(type: Data.self),
+                   let uiImage = UIImage(data: data) {
+                    loadedImages.append(uiImage)
+                }
+            }
+
+            guard !loadedImages.isEmpty else {
+                captureService.errorMessage = "Could not load the selected screenshots."
+                return
+            }
+
+            do {
+                previewResult = try captureService.stitchImportedScreenshots(
+                    loadedImages,
+                    detectOverlap: true
+                )
+            } catch {
+                captureService.errorMessage = error.localizedDescription
+            }
         }
     }
 
