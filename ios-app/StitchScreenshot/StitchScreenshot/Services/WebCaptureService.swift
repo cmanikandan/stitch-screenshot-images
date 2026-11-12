@@ -72,12 +72,16 @@ final class WebCaptureService {
         keychain: KeychainStoring = KeychainService()
     ) {
         let config = WKWebViewConfiguration()
+        config.websiteDataStore = .default()
         config.allowsInlineMediaPlayback = true
         config.defaultWebpagePreferences.allowsContentJavaScript = true
 
         let view = WKWebView(frame: CGRect(x: 0, y: 0, width: 390, height: 844), configuration: config)
         view.allowsBackForwardNavigationGestures = true
         view.backgroundColor = .systemBackground
+        // Standard Mobile Safari User-Agent so subscriber paywalls (NYT, WSJ, Google/Apple SSO)
+        // never block login inside WKWebView.
+        view.customUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"
 
         self.webView = view
         self.geminiService = geminiService

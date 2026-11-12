@@ -15,9 +15,10 @@ struct ContentView: View {
     @FocusState private var isAddressFieldFocused: Bool
 
     private let quickLinks: [(label: String, url: String)] = [
+        ("New York Times (Sign In Once)", "https://www.nytimes.com"),
+        ("Wall Street Journal (Sign In Once)", "https://www.wsj.com"),
         ("Wikipedia: Swift", "https://en.wikipedia.org/wiki/Swift_(programming_language)"),
-        ("Hacker News", "https://news.ycombinator.com"),
-        ("Apple Developer", "https://developer.apple.com/documentation/webkit")
+        ("Hacker News", "https://news.ycombinator.com")
     ]
 
     var body: some View {
